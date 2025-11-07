@@ -309,7 +309,10 @@ MAX_HISTORY=10
 
     if choice == "1":
         api_key = input("Enter your OpenAI API key (sk-...): ").strip()
-        api_config = f"# For OpenAI:\nOPENAI_API_KEY={api_key}"
+        api_config = f"""# For OpenAI:
+# Uncomment the line below to use OpenRouter or other custom endpoint:
+# OPENAI_API_BASE=https://openrouter.ai/api/v1
+OPENAI_API_KEY={api_key}"""
         llm_model = "gpt-4o-mini-2024-07-18"
         with open(ENV_FILE, "w") as f:
             f.write(config_template.format(api_config=api_config, llm_model=llm_model))
@@ -318,7 +321,10 @@ MAX_HISTORY=10
 
     elif choice == "2":
         api_key = input("Enter your OpenRouter API key (sk-or-...): ").strip()
-        api_config = f"# For OpenRouter:\nOPENAI_API_BASE=https://openrouter.ai/api/v1\nOPENAI_API_KEY={api_key}"
+        api_config = f"""# For OpenRouter:
+OPENAI_API_BASE=https://openrouter.ai/api/v1
+OPENAI_API_KEY={api_key}
+# To switch back to OpenAI, comment out OPENAI_API_BASE above"""
         llm_model = "openai/gpt-4o"
         with open(ENV_FILE, "w") as f:
             f.write(config_template.format(api_config=api_config, llm_model=llm_model))
