@@ -97,9 +97,16 @@ Assistant: Based on the research papers, the main findings are...
 
 ## Recent Fixes & Improvements
 
+✅ **v1.1.0** - Environment configuration: Configure chunk size, LLM model, and all parameters via .env
 ✅ **v1.0.2** - Source attribution: Each chunk now includes filename to prevent data mixing
 ✅ **v1.0.1** - Increased context window: 10 chunks (was 5) for better answers
 ✅ **v1.0.0** - Fixed metadata parameter compatibility with memvid package
+
+**New in v1.1.0:** Edit `.env` file to customize:
+- Chunk size and overlap
+- LLM model (GPT-4o, Claude, etc.)
+- Temperature, max tokens, context chunks
+- No code changes needed!
 
 **Important:** If you built datasets before v1.0.2, rebuild them to get source attribution:
 ```bash

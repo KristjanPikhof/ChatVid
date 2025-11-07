@@ -2,6 +2,53 @@
 
 All notable changes to ChatVid will be documented in this file.
 
+## [1.1.0] - 2025-01-07
+
+### Added
+- **Environment Variable Configuration**: Complete `.env` file support for all settings
+- **Chunking Configuration**: `CHUNK_SIZE` and `CHUNK_OVERLAP` environment variables
+- **LLM Configuration**: Environment variables for model, temperature, max tokens, context chunks, and history
+- **Validation Helpers**: Three new helper functions (`get_env_int`, `get_env_float`, `get_env_str`) with validation
+- **Auto-Configuration**: `./cli.sh setup` now creates complete `.env` with all default values
+- **Provider-Specific Defaults**: Setup automatically uses correct model for OpenAI vs OpenRouter
+- **Configuration Display**: Build and chat commands now show active configuration settings
+
+### Changed
+- `cmd_build`: Now reads chunk settings from environment instead of hardcoded values
+- `cmd_chat`: Now reads LLM parameters from environment instead of hardcoded values
+- `cmd_setup`: Generates full `.env` file with provider-specific defaults
+  - OpenAI setup → uses `gpt-4o-mini-2024-07-18`
+  - OpenRouter setup → uses `openai/gpt-4o` (correct format for OpenRouter)
+- `.env.example`: Expanded with comprehensive documentation and usage examples
+
+### Environment Variables Added
+
+| Variable | Default | Range | Phase |
+|----------|---------|-------|-------|
+| `CHUNK_SIZE` | 300 | 100-1000 | Build |
+| `CHUNK_OVERLAP` | 50 | 20-200 | Build |
+| `LLM_MODEL` | gpt-4o-mini-2024-07-18 | - | Chat |
+| `LLM_TEMPERATURE` | 0.7 | 0.0-2.0 | Chat |
+| `LLM_MAX_TOKENS` | 1000 | 100-4000 | Chat |
+| `CONTEXT_CHUNKS` | 10 | 1-20 | Chat |
+| `MAX_HISTORY` | 10 | 1-50 | Chat |
+
+### Benefits
+- ✅ No code edits needed for common configuration changes
+- ✅ Easy experimentation with different settings
+- ✅ Per-project configuration support
+- ✅ Automatic validation with helpful warnings
+- ✅ Backward compatible (uses defaults if env vars not set)
+
+### Breaking Changes
+None - fully backward compatible
+
+### Documentation
+- Added comprehensive "Configuration" section to README.md
+- Added configuration presets for different use cases
+- Updated QUICKSTART.md with configuration info
+- Enhanced `.env.example` with detailed comments
+
 ## [1.0.2] - 2025-01-07
 
 ### Fixed

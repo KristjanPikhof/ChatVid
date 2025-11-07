@@ -14,10 +14,19 @@ A complete command-line tool for managing document datasets with AI-powered embe
 ✅ Simple, intuitive CLI
 ✅ Improved context retrieval (10 chunks, up from 5)
 ✅ Source file tracking to prevent data mixing
+✅ **NEW**: Full environment variable configuration (chunk size, LLM model, temperature, etc.)
 
 ## Recent Updates
 
-### v1.0.2 (Latest) - Source Attribution Fix
+### v1.1.0 (Latest) - Environment Variable Configuration
+- **Added**: Complete `.env` configuration for all settings
+- **Chunk Configuration**: Set `CHUNK_SIZE` and `CHUNK_OVERLAP` without code edits
+- **LLM Configuration**: Configure model (`LLM_MODEL`), temperature, max tokens, context chunks
+- **Easy Experimentation**: Test different settings by editing `.env` file
+- **Auto-Setup**: `./cli.sh setup` creates full configuration automatically
+- **Validation**: All env vars validated with helpful warnings for invalid values
+
+### v1.0.2 - Source Attribution Fix
 - **Fixed**: Data mixing between files - AI now correctly distinguishes between different source documents
 - **How**: Each chunk prefixed with `[Source: filename.pdf]` for accurate attribution
 - **Impact**: Questions about specific documents now return correct information
@@ -321,6 +330,120 @@ OPENAI_API_KEY=sk-your-key
 OPENAI_API_BASE=https://openrouter.ai/api/v1
 OPENAI_API_KEY=sk-or-v1-your-key
 ```
+
+---
+
+## Configuration
+
+ChatVid is fully configurable via environment variables in the `.env` file.
+
+### Available Settings
+
+#### Chunking Configuration (Build Phase)
+
+| Variable | Range | Default | Description |
+|----------|-------|---------|-------------|
+| `CHUNK_SIZE` | 100-1000 | 300 | Size of text chunks in characters |
+| `CHUNK_OVERLAP` | 20-200 | 50 | Overlap between consecutive chunks |
+
+**Example**: For technical documents with complex topics:
+```bash
+CHUNK_SIZE=400
+CHUNK_OVERLAP=80
+```
+
+#### LLM Configuration (Chat Phase)
+
+| Variable | Range | Default | Description |
+|----------|-------|---------|-------------|
+| `LLM_MODEL` | - | gpt-4o-mini-2024-07-18 (OpenAI)<br>openai/gpt-4o (OpenRouter) | Model to use for chat |
+| `LLM_TEMPERATURE` | 0.0-2.0 | 0.7 | Response creativity level |
+| `LLM_MAX_TOKENS` | 100-4000 | 1000 | Maximum response length |
+| `CONTEXT_CHUNKS` | 1-20 | 10 | Chunks retrieved per query |
+| `MAX_HISTORY` | 1-50 | 10 | Conversation turns remembered |
+
+> **Note**: Setup command automatically uses the correct model based on provider choice.
+
+**Example**: For cost optimization:
+```bash
+LLM_MODEL=gpt-4o-mini-2024-07-18
+LLM_TEMPERATURE=0.7
+LLM_MAX_TOKENS=500
+CONTEXT_CHUNKS=7
+MAX_HISTORY=5
+```
+
+**Example**: For maximum quality:
+```bash
+LLM_MODEL=gpt-4o
+LLM_TEMPERATURE=0.3
+LLM_MAX_TOKENS=2000
+CONTEXT_CHUNKS=15
+MAX_HISTORY=20
+```
+
+### Configuration Presets
+
+#### For Technical Documentation
+```bash
+CHUNK_SIZE=400
+CHUNK_OVERLAP=80
+LLM_MODEL=gpt-4o-mini-2024-07-18
+LLM_TEMPERATURE=0.3
+CONTEXT_CHUNKS=12
+```
+
+#### For Creative Content
+```bash
+CHUNK_SIZE=300
+CHUNK_OVERLAP=50
+LLM_MODEL=gpt-4o
+LLM_TEMPERATURE=1.0
+CONTEXT_CHUNKS=10
+```
+
+#### For Cost Optimization
+```bash
+CHUNK_SIZE=300
+CHUNK_OVERLAP=40
+LLM_MODEL=gpt-4o-mini-2024-07-18
+LLM_MAX_TOKENS=500
+CONTEXT_CHUNKS=7
+```
+
+### How to Configure
+
+1. **During setup** (recommended):
+   ```bash
+   ./cli.sh setup
+   ```
+   Creates `.env` with all default values
+
+2. **Manual editing**:
+   ```bash
+   nano .env  # or use any text editor
+   ```
+
+3. **Per-project configuration**:
+   - Copy ChatVid to different directories
+   - Each directory can have its own `.env` file
+   - Different settings for different use cases
+
+### Configuration Validation
+
+All environment variables are validated automatically:
+- **Out of range**: Falls back to default with warning
+- **Invalid type**: Falls back to default with warning
+- **Missing variable**: Uses default silently
+
+### When to Rebuild
+
+After changing chunking settings (`CHUNK_SIZE`, `CHUNK_OVERLAP`), rebuild your datasets:
+```bash
+./cli.sh rebuild <dataset-name>
+```
+
+LLM settings (`LLM_MODEL`, `LLM_TEMPERATURE`, etc.) take effect immediately, no rebuild needed.
 
 ---
 
