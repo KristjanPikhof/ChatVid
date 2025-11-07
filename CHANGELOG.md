@@ -2,6 +2,73 @@
 
 All notable changes to ChatVid will be documented in this file.
 
+## [1.2.0] - 2025-01-07
+
+### Added - Interactive Menu System
+- **Interactive Menu Mode**: Comprehensive menu-driven interface with numbered selection
+- **Default Behavior**: Running `./cli.sh` with no arguments now starts interactive menu
+- **Dataset Selection**: Choose datasets from numbered list instead of typing names
+- **File Management**: New interactive file browser to view, remove, and manage files
+- **Help Command**: New `./cli.sh help` command with comprehensive documentation
+- **Menu Helper Functions**: `clear_screen()`, `print_menu_header()`, `pause_for_user()`, `get_menu_choice()`, `confirm_action()`, `print_dataset_list()`, `select_dataset()`
+- **Auto-Selection**: Single dataset automatically selected without prompting
+- **Status Indicators**: Visual indicators for dataset state (✓ Built, ⚠️ Not built, 📁 Empty)
+- **Progress Feedback**: Real-time feedback for long-running operations
+- **Folder Integration**: Open documents folder in system file manager (macOS/Windows/Linux)
+
+### Changed
+- `main()`: Now starts interactive menu when no command provided
+- `main()`: Added `--interactive` flag for explicit menu mode
+- `cli.sh`: Removed automatic `--help` display, delegates to Python for no-args behavior
+- All command functions: Compatible with both CLI and interactive menu invocation
+- Argument parser: Added help subcommand to routing table
+
+### Menu Options
+1. **Setup / Configure API** - Interactive API configuration wizard
+2. **Create New Dataset** - Guided dataset creation with validation
+3. **Build Dataset** - Select dataset from list, process documents
+4. **Chat with Dataset** - Select dataset and start interactive chat
+5. **Append Documents** - Select dataset and add new/modified files
+6. **Rebuild Dataset** - Select dataset and rebuild from scratch
+7. **List All Datasets** - View all datasets with status
+8. **Dataset Info** - Select dataset and view detailed information
+9. **Manage Dataset Files** - Interactive file browser and management
+10. **Delete Dataset** - Select dataset and delete with confirmation
+11. **Help & Documentation** - Comprehensive help system
+0. **Exit** - Quit interactive menu
+
+### File Management Features
+- **View File Details**: Size, type, modified date, processing status
+- **Remove Files**: Delete files from dataset with confirmation
+- **Open Folder**: Launch system file manager to documents directory
+- **File List**: Numbered list with sizes for easy selection
+
+### Help System
+- **Command Reference**: All commands with syntax and examples
+- **Configuration Guide**: Environment variable reference table
+- **Workflow Tutorials**: Step-by-step guides for common tasks
+- **Troubleshooting**: Common issues and solutions
+- **Configuration Presets**: Recommended settings for different use cases
+
+### Benefits
+- ✅ **Beginner-Friendly**: No need to memorize commands
+- ✅ **Zero Dependencies**: Uses native Python input(), works everywhere
+- ✅ **Fully Backward Compatible**: All existing CLI commands work unchanged
+- ✅ **Discoverable**: Easy to explore features through menus
+- ✅ **Validated Input**: Clear error messages and re-prompting
+- ✅ **Progress Tracking**: Visual feedback for operations
+- ✅ **File Management**: Manage files without leaving CLI
+
+### Documentation
+- Added INTERACTIVE_MENU.md - Complete interactive menu guide
+- Added HELP_REFERENCE.md - Comprehensive command and configuration reference
+- Updated examples in main epilog to show interactive menu
+
+### Breaking Changes
+None - fully backward compatible with v1.1.0 and earlier
+
+---
+
 ## [1.1.0] - 2025-01-07
 
 ### Added
@@ -129,6 +196,8 @@ None - fully backward compatible
 
 | Version | Date | Key Changes |
 |---------|------|-------------|
+| 1.2.0 | 2025-01-07 | Interactive menu system with numbered selection and file management |
+| 1.1.0 | 2025-01-07 | Environment variable configuration and OpenRouter fix |
 | 1.0.2 | 2025-01-07 | Source attribution fix - prevents data mixing |
 | 1.0.1 | 2025-01-07 | Context window improvement - 10 chunks instead of 5 |
 | 1.0.0 | 2025-01-07 | Initial release with metadata parameter fix |

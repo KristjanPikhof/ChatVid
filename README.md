@@ -1,6 +1,8 @@
 # ChatVid - Memvid Dataset Management CLI
 
-A complete command-line tool for managing document datasets with AI-powered embeddings and interactive chat using Memvid.
+A complete command-line tool for managing document datasets with AI-powered embeddings and interactive chat.
+
+**Powered by [Memvid v1](https://github.com/Olow304/memvid)** - Turn millions of text chunks into a single, searchable video file. 🎬
 
 ## Features
 
@@ -11,14 +13,26 @@ A complete command-line tool for managing document datasets with AI-powered embe
 ✅ Automatic embedding generation with source attribution
 ✅ Interactive AI chat with your documents
 ✅ Dataset versioning (append/rebuild)
-✅ Simple, intuitive CLI
+✅ Simple, intuitive CLI with interactive menu mode
 ✅ Improved context retrieval (10 chunks, up from 5)
 ✅ Source file tracking to prevent data mixing
-✅ **NEW**: Full environment variable configuration (chunk size, LLM model, temperature, etc.)
+✅ Full environment variable configuration (chunk size, LLM model, temperature, etc.)
+✅ **NEW**: Interactive menu system with numbered selection
+✅ **NEW**: File management interface
+✅ **NEW**: Comprehensive help system
 
 ## Recent Updates
 
-### v1.1.0 (Latest) - Environment Variable Configuration
+### v1.2.0 (Latest) - Interactive Menu System
+- **Added**: Interactive menu-driven interface with numbered selection
+- **Default Behavior**: Running `./cli.sh` with no arguments now starts interactive menu
+- **Dataset Selection**: Choose datasets from numbered list instead of typing names
+- **File Management**: View, remove, and manage files interactively
+- **Help Command**: New `./cli.sh help` command with comprehensive documentation
+- **Zero Dependencies**: Uses native Python input(), works everywhere
+- **Fully Backward Compatible**: All existing CLI commands work unchanged
+
+### v1.1.0 - Environment Variable Configuration
 - **Added**: Complete `.env` configuration for all settings
 - **Chunk Configuration**: Set `CHUNK_SIZE` and `CHUNK_OVERLAP` without code edits
 - **LLM Configuration**: Configure model (`LLM_MODEL`), temperature, max tokens, context chunks
@@ -44,7 +58,33 @@ A complete command-line tool for managing document datasets with AI-powered embe
 
 ## Quick Start
 
-### 1. First-Time Setup
+**New in v1.2.0**: Interactive menu mode! Simply run `./cli.sh` and follow the numbered menus - no commands to memorize!
+
+### Interactive Mode (Recommended for Beginners)
+
+```bash
+cd ChatVid
+./cli.sh
+```
+
+The interactive menu will guide you through:
+1. **Setup** - Configure your API key
+2. **Create Dataset** - Name your dataset
+3. **Build** - Select dataset and process documents
+4. **Chat** - Select dataset and start asking questions
+5. **File Management** - View and manage files
+6. **Help** - Comprehensive documentation
+
+**Benefits**:
+- No command memorization needed
+- Numbered selection (just type 1, 2, 3, etc.)
+- Visual dataset status indicators
+- Guided workflows with validation
+- Built-in help and troubleshooting
+
+### Command-Line Mode (For Advanced Users)
+
+#### 1. First-Time Setup
 
 ```bash
 cd ChatVid
@@ -56,7 +96,7 @@ This will:
 - Install all dependencies
 - Prompt for your OpenAI or OpenRouter API key
 
-### 2. Create a Dataset
+#### 2. Create a Dataset
 
 ```bash
 ./cli.sh create my-project
@@ -69,7 +109,7 @@ datasets/my-project/
 └── metadata.json  # Dataset tracking
 ```
 
-### 3. Add Your Documents
+#### 3. Add Your Documents
 
 ```bash
 # Copy your files to the documents folder
@@ -83,7 +123,7 @@ Supported formats:
 - **Markdown** (`.md`)
 - **Word** (`.docx`, `.doc`)
 
-### 4. Build Embeddings
+#### 4. Build Embeddings
 
 ```bash
 ./cli.sh build my-project
@@ -95,7 +135,7 @@ This will:
 - Generate semantic embeddings
 - Create searchable knowledge base (`knowledge.mp4`)
 
-### 5. Start Chatting!
+#### 5. Start Chatting!
 
 ```bash
 ./cli.sh chat my-project
@@ -104,6 +144,39 @@ This will:
 Ask questions about your documents and get AI-powered answers! The AI now correctly distinguishes between different source files.
 
 ## Complete Command Reference
+
+### Interactive Menu Mode
+
+#### `./cli.sh` (no arguments)
+Start interactive menu with numbered selection
+
+```bash
+./cli.sh
+```
+
+**Menu Options**:
+1. Setup / Configure API
+2. Create New Dataset
+3. Build Dataset (Process Documents)
+4. Chat with Dataset
+5. Append Documents to Dataset
+6. Rebuild Dataset
+7. List All Datasets
+8. Dataset Info
+9. Manage Dataset Files - **NEW!**
+10. Delete Dataset
+11. Help & Documentation - **NEW!**
+0. Exit
+
+**Features**:
+- Dataset selection from numbered list
+- File management (view, remove, open folder)
+- Built-in help and tutorials
+- Progress tracking and validation
+
+For more details, see [INTERACTIVE_MENU.md](INTERACTIVE_MENU.md)
+
+---
 
 ### Setup & Configuration
 
@@ -119,6 +192,22 @@ Prompts for:
 - **OpenRouter** API key (https://openrouter.ai/keys)
 
 Saves configuration to `.env` file.
+
+#### `./cli.sh help`
+Show comprehensive help documentation - **NEW!**
+
+```bash
+./cli.sh help
+```
+
+Displays:
+- Command reference with examples
+- Configuration variable guide
+- Workflow tutorials
+- Troubleshooting tips
+- Configuration presets
+
+For detailed reference, see [HELP_REFERENCE.md](HELP_REFERENCE.md)
 
 ---
 
@@ -459,6 +548,44 @@ LLM settings (`LLM_MODEL`, `LLM_TEMPERATURE`, etc.) take effect immediately, no 
 
 ---
 
+## Documentation
+
+Complete guides and references for all features:
+
+- **[INTERACTIVE_MENU.md](INTERACTIVE_MENU.md)** - Interactive menu system guide
+  - How to use the numbered menus
+  - Dataset selection
+  - File management features
+  - Navigation and tips
+
+- **[HELP_REFERENCE.md](HELP_REFERENCE.md)** - Comprehensive command and configuration reference
+  - Detailed command documentation
+  - Configuration variable reference
+  - Workflow tutorials
+  - Troubleshooting guide
+
+- **[QUICKSTART.md](QUICKSTART.md)** - 5-minute quick start guide
+  - Fastest way to get started
+  - Essential commands only
+
+- **[PROVIDER_SETUP.md](PROVIDER_SETUP.md)** - OpenAI vs OpenRouter guide
+  - Provider comparison
+  - Model selection
+  - Cost optimization
+
+- **[CHANGELOG.md](CHANGELOG.md)** - Complete version history
+  - All releases
+  - Breaking changes
+  - Upgrade guides
+
+- **[ENV_IMPROVEMENTS.md](ENV_IMPROVEMENTS.md)** - Environment configuration improvements
+  - Provider switching
+  - Configuration tips
+
+- **[OPENROUTER_FIX.md](OPENROUTER_FIX.md)** - Technical details of OpenRouter integration fix
+
+---
+
 ## Troubleshooting
 
 ### "Module not found" errors
@@ -625,11 +752,16 @@ Each dataset is independent:
 
 All automatically installed by `./cli.sh setup`:
 
-- `memvid>=0.1.3` - Core embedding and search
+**Core:**
+- **`memvid>=0.1.3`** - [Memvid v1](https://github.com/Olow304/memvid) - Core embedding storage and semantic search engine
+
+**Document Processing:**
 - `PyPDF2>=3.0.1` - PDF text extraction
-- `openai>=1.0.0` - LLM integration
 - `python-docx>=0.8.11` - Word document support
-- `python-dotenv>=1.0.0` - Environment configuration
+
+**API & Configuration:**
+- `openai>=1.0.0` - LLM integration (OpenAI and OpenRouter)
+- `python-dotenv>=1.0.0` - Environment variable management
 
 ---
 
@@ -650,15 +782,64 @@ All automatically installed by `./cli.sh setup`:
 
 ---
 
+## Built With Memvid
+
+**ChatVid** is powered by [**Memvid v1**](https://github.com/Olow304/memvid) - an innovative library that turns millions of text chunks into a single, searchable video file.
+
+### What is Memvid?
+
+Memvid compresses an entire knowledge base into MP4 files while keeping millisecond-level semantic search. Think of it as **SQLite for AI memory** - portable, efficient, and self-contained.
+
+**Key Features:**
+- 📦 **50-100× smaller storage** than traditional vector databases
+- 🎬 **Encodes text as QR codes** in video frames
+- 🚀 **Zero infrastructure** required - just video files
+- 🔍 **Millisecond-level semantic search**
+- 💾 **Portable and self-contained**
+
+**Learn more:**
+- GitHub: https://github.com/Olow304/memvid
+- PyPI: https://pypi.org/project/memvid/
+- License: MIT
+- Author: [Olow304](https://github.com/Olow304)
+
+**Why Memvid?**
+
+ChatVid leverages Memvid's unique approach to storing embeddings as video files, making your document knowledge bases portable, efficient, and requiring zero database infrastructure. The entire dataset fits in a single `.mp4` file!
+
+---
+
+## Acknowledgments
+
+- **[Memvid v1](https://github.com/Olow304/memvid)** by [Olow304](https://github.com/Olow304) - The core technology that makes ChatVid possible
+- OpenAI - API for embeddings and chat completions
+- OpenRouter - Alternative API provider supporting multiple models
+
+---
+
 ## License
 
 MIT License
+
+Copyright (c) 2025 Esmaabi (ChatVid)
+
+This project is built upon and complies with the MIT License of the Memvid library:
+- Memvid v1: Copyright (c) 2025 Olow304
+
+See [LICENSE](LICENSE) for full details.
 
 ---
 
 ## Quick Reference Card
 
 ```bash
+# Interactive Menu (Recommended for beginners)
+./cli.sh                       # Start interactive menu - NEW in v1.2.0!
+
+# Help & Documentation
+./cli.sh help                  # Comprehensive help - NEW!
+./cli.sh --help                # Quick command reference
+
 # Setup
 ./cli.sh setup                 # First-time configuration
 
@@ -678,8 +859,14 @@ MIT License
 
 # Chat
 ./cli.sh chat <name>           # Interactive Q&A
+
+# Configuration
+# → Edit .env to change: chunk size, model, temperature, etc.
 ```
 
 ---
 
-**Ready to get started? Run `./cli.sh setup`!** 🚀
+**Ready to get started?**
+
+- **Beginners**: Run `./cli.sh` for interactive menu 🎯
+- **Advanced**: Run `./cli.sh setup` for command-line mode 🚀
