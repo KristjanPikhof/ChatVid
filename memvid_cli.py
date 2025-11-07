@@ -88,6 +88,48 @@ def get_file_hash(file_path: Path) -> str:
     return hash_md5.hexdigest()
 
 
+def get_env_int(key: str, default: int, min_val: int, max_val: int) -> int:
+    """Get integer from environment with validation"""
+    value = os.getenv(key)
+    if value is None:
+        return default
+
+    try:
+        int_value = int(value)
+        if int_value < min_val or int_value > max_val:
+            print_warning(f"{key}={int_value} out of range [{min_val}-{max_val}], using default: {default}")
+            return default
+        return int_value
+    except ValueError:
+        print_warning(f"{key}={value} is not a valid integer, using default: {default}")
+        return default
+
+
+def get_env_float(key: str, default: float, min_val: float, max_val: float) -> float:
+    """Get float from environment with validation"""
+    value = os.getenv(key)
+    if value is None:
+        return default
+
+    try:
+        float_value = float(value)
+        if float_value < min_val or float_value > max_val:
+            print_warning(f"{key}={float_value} out of range [{min_val}-{max_val}], using default: {default}")
+            return default
+        return float_value
+    except ValueError:
+        print_warning(f"{key}={value} is not a valid number, using default: {default}")
+        return default
+
+
+def get_env_str(key: str, default: str) -> str:
+    """Get string from environment with default"""
+    value = os.getenv(key)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip()
+
+
 def read_text_file(file_path: Path) -> str:
     """Read plain text file"""
     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -218,26 +260,86 @@ def cmd_setup(args):
 
     choice = input("Enter choice (1 or 2): ").strip()
 
+    # Configuration template - {llm_model} will be replaced based on provider
+    config_template = """# ChatVid Configuration
+
+# ============================================================================
+# API Configuration (Required)
+# ============================================================================
+
+{api_config}
+
+# ============================================================================
+# Chunking Configuration (Build Phase)
+# ============================================================================
+
+# Size of text chunks in characters (affects how documents are split)
+# Range: 100-1000 | Default: 300
+CHUNK_SIZE=300
+
+# Overlap between consecutive chunks in characters (prevents information loss)
+# Range: 20-200 | Default: 50
+CHUNK_OVERLAP=50
+
+# ============================================================================
+# LLM Configuration (Chat Phase)
+# ============================================================================
+
+# Model to use for chat responses
+# OpenAI: gpt-4o-mini-2024-07-18, gpt-4o, gpt-4-turbo, gpt-3.5-turbo
+# OpenRouter: openai/gpt-4o, anthropic/claude-3-sonnet, google/gemini-pro-1.5, etc.
+LLM_MODEL={llm_model}
+
+# Temperature controls response creativity (0.0 = focused, 2.0 = creative)
+# Range: 0.0-2.0 | Default: 0.7
+LLM_TEMPERATURE=0.7
+
+# Maximum tokens in response (controls response length)
+# Range: 100-4000 | Default: 1000
+LLM_MAX_TOKENS=1000
+
+# Number of text chunks to retrieve for each query
+# Range: 1-20 | Default: 10
+CONTEXT_CHUNKS=10
+
+# Number of conversation turns to remember (history depth)
+# Range: 1-50 | Default: 10
+MAX_HISTORY=10
+"""
+
     if choice == "1":
         api_key = input("Enter your OpenAI API key (sk-...): ").strip()
+        api_config = f"# For OpenAI:\nOPENAI_API_KEY={api_key}"
+        llm_model = "gpt-4o-mini-2024-07-18"
         with open(ENV_FILE, "w") as f:
-            f.write(f"OPENAI_API_KEY={api_key}\n")
+            f.write(config_template.format(api_config=api_config, llm_model=llm_model))
         print_success("OpenAI API key saved to .env")
+        model_display = llm_model
 
     elif choice == "2":
         api_key = input("Enter your OpenRouter API key (sk-or-...): ").strip()
+        api_config = f"# For OpenRouter:\nOPENAI_API_BASE=https://openrouter.ai/api/v1\nOPENAI_API_KEY={api_key}"
+        llm_model = "openai/gpt-4o"
         with open(ENV_FILE, "w") as f:
-            f.write(f"OPENAI_API_BASE=https://openrouter.ai/api/v1\n")
-            f.write(f"OPENAI_API_KEY={api_key}\n")
+            f.write(config_template.format(api_config=api_config, llm_model=llm_model))
         print_success("OpenRouter API key saved to .env")
+        model_display = llm_model
 
     else:
         print_error("Invalid choice")
         return
 
     print()
-    print_info("Setup complete! You can now create datasets and start chatting.")
-    print_info("Run: ./cli.sh create <dataset-name>")
+    print_success("Setup complete! Configuration saved to .env")
+    print()
+    print_info("Default settings applied:")
+    print_info("  - Chunk size: 300 characters")
+    print_info("  - Chunk overlap: 50 characters")
+    print_info(f"  - LLM model: {model_display}")
+    print_info("  - Context chunks: 10")
+    print()
+    print_info("To customize settings, edit .env file")
+    print_info("Next step: ./cli.sh create <dataset-name>")
 
 
 def cmd_create(args):
@@ -375,7 +477,12 @@ def cmd_build(args):
     # Initialize encoder
     encoder = MemvidEncoder()
 
+    # Get chunking configuration from environment
+    chunk_size = get_env_int("CHUNK_SIZE", 300, 100, 1000)
+    chunk_overlap = get_env_int("CHUNK_OVERLAP", 50, 20, 200)
+
     print_info(f"Processing {len(docs)} documents...")
+    print_info(f"Chunk settings: size={chunk_size}, overlap={chunk_overlap}")
     print()
 
     files_processed = {}
@@ -392,7 +499,7 @@ def cmd_build(args):
         # Prepend source filename to help LLM distinguish between documents
         file_hash = get_file_hash(doc_path)
         prefixed_text = f"[Source: {doc_path.name}]\n\n{text}"
-        encoder.add_text(prefixed_text, chunk_size=300, overlap=50)
+        encoder.add_text(prefixed_text, chunk_size=chunk_size, overlap=chunk_overlap)
 
         files_processed[doc_path.name] = file_hash
         print_success(f"  Added ({len(text)} characters)")
@@ -517,6 +624,13 @@ def cmd_chat(args):
     try:
         base_url = os.getenv("OPENAI_API_BASE")
 
+        # Get LLM configuration from environment
+        llm_model = get_env_str("LLM_MODEL", "gpt-4o-mini-2024-07-18")
+        llm_temperature = get_env_float("LLM_TEMPERATURE", 0.7, 0.0, 2.0)
+        llm_max_tokens = get_env_int("LLM_MAX_TOKENS", 1000, 100, 4000)
+        context_chunks = get_env_int("CONTEXT_CHUNKS", 10, 1, 20)
+        max_history = get_env_int("MAX_HISTORY", 10, 1, 50)
+
         # Load the existing config from index and update chat settings
         import json
 
@@ -526,17 +640,21 @@ def cmd_chat(args):
         # Use existing config and override chat settings
         chat_config = index_data.get("config", {})
         chat_config["chat"] = {
-            "max_history": 10,
-            "context_chunks": 10,  # Increased from default 5
+            "max_history": max_history,
+            "context_chunks": context_chunks,
         }
-        chat_config["llm"]["temperature"] = 0.7
-        chat_config["llm"]["max_tokens"] = 1000
+        chat_config["llm"]["temperature"] = llm_temperature
+        chat_config["llm"]["max_tokens"] = llm_max_tokens
+
+        print_info(f"LLM settings: model={llm_model}, temp={llm_temperature}, max_tokens={llm_max_tokens}")
+        print_info(f"Chat settings: context_chunks={context_chunks}, max_history={max_history}")
+        print()
 
         chat = MemvidChat(
             video_file=str(dataset.video_file),
             index_file=str(dataset.index_file),
             llm_provider="openai",
-            llm_model="gpt-4o-mini-2024-07-18",
+            llm_model=llm_model,
             llm_api_key=api_key,
             config=chat_config,
         )
