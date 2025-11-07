@@ -6,20 +6,20 @@ A complete command-line tool for managing document datasets with AI-powered embe
 
 ## Features
 
-✅ Self-contained virtual environment management
-✅ Automatic dependency installation
-✅ Multiple dataset support
-✅ Multi-format file support (PDF, TXT, MD, DOCX)
-✅ Automatic embedding generation with source attribution
-✅ Interactive AI chat with your documents
-✅ Dataset versioning (append/rebuild)
-✅ Simple, intuitive CLI with interactive menu mode
-✅ Improved context retrieval (10 chunks, up from 5)
-✅ Source file tracking to prevent data mixing
-✅ Full environment variable configuration (chunk size, LLM model, temperature, etc.)
-✅ **NEW**: Interactive menu system with numbered selection
-✅ **NEW**: File management interface
-✅ **NEW**: Comprehensive help system
+- ✅ Self-contained virtual environment management
+- ✅ Automatic dependency installation
+- ✅ Multiple dataset support
+- ✅ Multi-format file support (PDF, TXT, MD, DOCX)
+- ✅ Automatic embedding generation with source attribution
+- ✅ Interactive AI chat with your documents
+- ✅ Dataset versioning (append/rebuild)
+- ✅ Simple, intuitive CLI with interactive menu mode
+- ✅ Improved context retrieval (10 chunks, up from 5)
+- ✅ Source file tracking to prevent data mixing
+- ✅ Full environment variable configuration (chunk size, LLM model, temperature, etc.)
+- ✅ **NEW**: Interactive menu system with numbered selection
+- ✅ **NEW**: File management interface
+- ✅ **NEW**: Comprehensive help system
 
 ## Recent Updates
 
@@ -175,8 +175,6 @@ Start interactive menu with numbered selection
 - Built-in help and tutorials
 - Progress tracking and validation
 
-For more details, see [INTERACTIVE_MENU.md](INTERACTIVE_MENU.md)
-
 ---
 
 ### Setup & Configuration
@@ -207,8 +205,6 @@ Displays:
 - Workflow tutorials
 - Troubleshooting tips
 - Configuration presets
-
-For detailed reference, see [HELP_REFERENCE.md](HELP_REFERENCE.md)
 
 ---
 
@@ -321,13 +317,13 @@ Features:
 
 Example session:
 ```
-You: What did Bitweb offer in their proposal?
-Assistant: [Source: Hinnapakkumine_Bitweb_3.11.pdf]
-Based on the Bitweb proposal, they offered...
+You: What did Company A offer in their proposal?
+Assistant: [Source: Proposal_CompanyA_3.11.pdf]
+Based on the Company A proposal, they offered...
 
-You: What about Dux pricing?
-Assistant: [Source: Dux_hinnapakkumine.pdf]
-According to the Dux proposal, their pricing structure...
+You: What about B pricing?
+Assistant: [Source: Proposal_CompanyB_3.11.pdf]
+According to the Company B proposal, their pricing structure...
 
 You: quit
 ```
@@ -465,7 +461,7 @@ MAX_HISTORY=5
 
 **Example**: For maximum quality:
 ```bash
-LLM_MODEL=gpt-4o
+LLM_MODEL=gpt-4o-mini-2024-07-18
 LLM_TEMPERATURE=0.3
 LLM_MAX_TOKENS=2000
 CONTEXT_CHUNKS=15
@@ -487,7 +483,7 @@ CONTEXT_CHUNKS=12
 ```bash
 CHUNK_SIZE=300
 CHUNK_OVERLAP=50
-LLM_MODEL=gpt-4o
+LLM_MODEL=gpt-4o-mini-2024-07-18
 LLM_TEMPERATURE=1.0
 CONTEXT_CHUNKS=10
 ```
@@ -519,13 +515,6 @@ CONTEXT_CHUNKS=7
    - Each directory can have its own `.env` file
    - Different settings for different use cases
 
-### Configuration Validation
-
-All environment variables are validated automatically:
-- **Out of range**: Falls back to default with warning
-- **Invalid type**: Falls back to default with warning
-- **Missing variable**: Uses default silently
-
 ### When to Rebuild
 
 After changing chunking settings (`CHUNK_SIZE`, `CHUNK_OVERLAP`), rebuild your datasets:
@@ -547,44 +536,6 @@ LLM settings (`LLM_MODEL`, `LLM_TEMPERATURE`, etc.) take effect immediately, no 
 | Word | `.docx` | ✅ Full | Via python-docx |
 | Word (old) | `.doc` | ⚠️ Limited | May require conversion |
 | HTML | `.html`, `.htm` | ✅ Full | Via BeautifulSoup4, strips tags/scripts |
-
----
-
-## Documentation
-
-Complete guides and references for all features:
-
-- **[INTERACTIVE_MENU.md](INTERACTIVE_MENU.md)** - Interactive menu system guide
-  - How to use the numbered menus
-  - Dataset selection
-  - File management features
-  - Navigation and tips
-
-- **[HELP_REFERENCE.md](HELP_REFERENCE.md)** - Comprehensive command and configuration reference
-  - Detailed command documentation
-  - Configuration variable reference
-  - Workflow tutorials
-  - Troubleshooting guide
-
-- **[QUICKSTART.md](QUICKSTART.md)** - 5-minute quick start guide
-  - Fastest way to get started
-  - Essential commands only
-
-- **[PROVIDER_SETUP.md](PROVIDER_SETUP.md)** - OpenAI vs OpenRouter guide
-  - Provider comparison
-  - Model selection
-  - Cost optimization
-
-- **[CHANGELOG.md](CHANGELOG.md)** - Complete version history
-  - All releases
-  - Breaking changes
-  - Upgrade guides
-
-- **[ENV_IMPROVEMENTS.md](ENV_IMPROVEMENTS.md)** - Environment configuration improvements
-  - Provider switching
-  - Configuration tips
-
-- **[OPENROUTER_FIX.md](OPENROUTER_FIX.md)** - Technical details of OpenRouter integration fix
 
 ---
 
@@ -613,7 +564,7 @@ cat .env
 # Make sure files are in the right place
 ls datasets/my-project/documents/
 
-# Supported extensions: .pdf, .txt, .md, .docx
+# Supported extensions: .pdf, .txt, .md, .html
 ```
 
 ### "Embeddings not built"
@@ -634,50 +585,36 @@ ls datasets/my-project/documents/
 ./cli.sh rebuild my-project
 ```
 
-This fix prepends `[Source: filename.pdf]` to each chunk so the AI can distinguish between documents.
-
-### Tokenizer warnings
-
-These are harmless and already suppressed. If you see them, they're just informational.
-
-### For detailed fix documentation
-
-- **Build errors**: See `BUGFIX.md`
-- **Chat improvements**: See `CHAT_IMPROVEMENT.md`
-- **Source attribution**: See `SOURCE_ATTRIBUTION_FIX.md`
-
 ---
 
 ## Advanced Usage
 
 ### Custom Chunk Sizes
-
-Edit `memvid_cli.py`, line ~391:
-```python
-prefixed_text = f"[Source: {doc_path.name}]\n\n{text}"
-encoder.add_text(
-    prefixed_text,
-    chunk_size=300,  # Change this (100-500 recommended)
-    overlap=50,      # And this (20-100 recommended)
-)
+Adjust document chunk sizes in the `.env` file:
+```
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+```
+After modifying these values, rebuild datasets:
+```
+./cli.sh rebuild <dataset_name>
 ```
 
-**Note:** After changing chunk size, rebuild your datasets with `./cli.sh rebuild <name>`
-
-### Using Different Models
-
-Edit `.env`:
-```bash
-# Use GPT-4 instead of GPT-3.5
+### Model Configuration
+Edit `.env` to define API source and model:
+```
 OPENAI_API_KEY=sk-your-key
-# (GPT-4 requires model change in code)
 ```
-
-For OpenRouter, you can use any model:
-```bash
+For OpenRouter integration:
+```
 OPENAI_API_BASE=https://openrouter.ai/api/v1
 OPENAI_API_KEY=sk-or-v1-your-key
-# Models: openai/gpt-4, anthropic/claude-3-sonnet, etc.
+LLM_MODEL=openai/gpt-4o
+```
+Examples of alternative models:
+```
+LLM_MODEL=anthropic/claude-4.5-haiku
+LLM_MODEL=google/gemini-pro-2.5
 ```
 
 ### Multiple Projects
@@ -697,7 +634,7 @@ Each dataset is independent:
 
 ## How It Works
 
-1. **Text Extraction**: Reads PDF/TXT/MD/DOCX files and extracts text
+1. **Text Extraction**: Reads PDF/TXT/MD/HTML files and extracts text
 2. **Source Attribution**: Prepends `[Source: filename.pdf]` to each document (v1.0.2+)
 3. **Chunking**: Splits text into overlapping chunks (~300 chars with 50 char overlap)
 4. **Embeddings**: Generates semantic vectors using sentence-transformers (all-MiniLM-L6-v2)

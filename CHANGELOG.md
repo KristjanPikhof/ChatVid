@@ -2,6 +2,44 @@
 
 All notable changes to ChatVid will be documented in this file.
 
+## [1.3.0] - 2025-01-07
+### Added - HTML/Web Content Support
+- **HTML Support**: ChatVid now supports `.html` and `.htm` files as input for dataset building and chat.
+- **Dependencies**:
+  - `beautifulsoup4>=4.12.0` – HTML parsing and text extraction
+  - `lxml>=4.9.0` – High-performance parsing backend
+- **New Functionality (`memvid_cli.py`)**:
+  - Added optional `HTML_SUPPORT` flag for conditional import of HTML parsing modules.
+  - Implemented `read_html_file()` (lines 343–375):
+    - Parses HTML via BeautifulSoup using the `lxml` parser.
+    - Removes `<script>` and `<style>` elements.
+    - Extracts plain text content from remaining nodes.
+    - Normalizes whitespace and preserves layout where meaningful.
+  - Updated `process_file()` to route and handle `.html` / `.htm` extensions.
+  - Included HTML file patterns in `Dataset.get_documents()` glob expansion.
+
+### Documentation
+- **README.md**
+  - Expanded supported file formats to include HTML.
+  - Updated dependency table with BeautifulSoup4 and lxml.
+  - Clarified system requirements for optional components.
+
+### Features
+- ✅ HTML and web-page text extraction
+- ✅ Automatic removal of non-content elements (`script`, `style`)
+- ✅ Clean text normalization for readability
+- ✅ Structural preservation of nested content
+- ✅ Functional for both `.html` and `.htm` extensions
+- ✅ Graceful degradation if optional dependencies not present
+
+### Benefits
+- Enables integration of saved web pages into ChatVid datasets.
+- Uniform chat access across PDFs, DOCX, TXT, MD, and now HTML files.
+- No config changes required for existing datasets.
+
+### Breaking Changes
+None – fully backward compatible with v1.2.0.
+
 ## [1.2.0] - 2025-01-07
 
 ### Added - Interactive Menu System
@@ -136,9 +174,6 @@ None - fully backward compatible
 - All chunks now include source filename for accurate attribution
 - Improved answer accuracy when asking about specific documents
 
-### Added
-- `SOURCE_ATTRIBUTION_FIX.md` - Detailed documentation of the fix
-
 ### Action Required
 - **Users must rebuild existing datasets** to get source attribution:
   ```bash
@@ -160,7 +195,6 @@ None - fully backward compatible
 - LLM temperature: default → 0.7 for better balance
 
 ### Added
-- `CHAT_IMPROVEMENT.md` - Detailed documentation of context improvements
 - Configuration tips for further customization
 
 ## [1.0.0] - 2025-01-07
@@ -176,15 +210,12 @@ None - fully backward compatible
 - File tracking moved to `metadata.json` instead of embedded metadata
 - Hash-based file change detection still works correctly
 
-### Added
-- `BUGFIX.md` - Detailed documentation of the metadata parameter fix
-- Workaround documentation for metadata limitations
 
 ### Initial Release Features
 - ✅ Self-contained virtual environment management
 - ✅ Automatic dependency installation
 - ✅ Multiple dataset support
-- ✅ Multi-format file support (PDF, TXT, MD, DOCX)
+- ✅ Multi-format file support (PDF, TXT, MD)
 - ✅ Automatic embedding generation
 - ✅ Interactive AI chat
 - ✅ Dataset versioning (append/rebuild)
@@ -193,14 +224,14 @@ None - fully backward compatible
 ---
 
 ## Version History Summary
-
 | Version | Date | Key Changes |
-|---------|------|-------------|
-| 1.2.0 | 2025-01-07 | Interactive menu system with numbered selection and file management |
+|----------|------|-------------|
+| 1.3.0 | 2025-01-07 | HTML/Web content parsing support via BeautifulSoup4 + lxml |
+| 1.2.0 | 2025-01-07 | Interactive menu system with file management |
 | 1.1.0 | 2025-01-07 | Environment variable configuration and OpenRouter fix |
-| 1.0.2 | 2025-01-07 | Source attribution fix - prevents data mixing |
-| 1.0.1 | 2025-01-07 | Context window improvement - 10 chunks instead of 5 |
-| 1.0.0 | 2025-01-07 | Initial release with metadata parameter fix |
+| 1.0.2 | 2025-01-07 | Source attribution fix |
+| 1.0.1 | 2025-01-07 | Context window improvement |
+| 1.0.0 | 2025-01-07 | Initial release |
 
 ---
 
@@ -256,11 +287,7 @@ See `TODO.md` for planned features:
 ## Documentation
 
 - **README.md**: Complete user guide
-- **QUICKSTART.md**: 5-minute setup guide
 - **TODO.md**: Future features and enhancements
-- **BUGFIX.md**: v1.0.0 metadata parameter fix
-- **CHAT_IMPROVEMENT.md**: v1.0.1 context window improvement
-- **SOURCE_ATTRIBUTION_FIX.md**: v1.0.2 data mixing fix
 
 ---
 
