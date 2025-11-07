@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+venv/
+env/
+.build/
+dist/
+
+# Environment and configuration
+.env
+.env.local
+.env.*
+!*.env.example
+
+# Logs
+*.log
+logs/
+nohup.out
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE and editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Datasets and generated content
+datasets/*/knowledge.mp4
+datasets/*/knowledge_index.json
+datasets/*/knowledge_index.faiss
+datasets/*/metadata.json
+
+# Keep documents folder structure but ignore files inside
+datasets/*/documents/*
+!datasets/*/documents/.gitkeep
+
+# Backup or temporary files
+*.bak
+*.tmp
+*.old
+~*
+
+# CLI or shell outputs
+*.out
+
+# Memvid-specific cache
+.memvid_cache/
+.memvid_tmp/
+
+# Test and temporary datasets
+datasets/test*/
+datasets/temp*/
+datasets/tmp*/
+
+# PyPDF2 cache
+.pypdf2_cache/
+
+# Sentence transformers cache (can be large)
+.cache/
+sentence_transformers_cache/
+
+# Jupyter notebooks (if added later)
+.ipynb_checkpoints/
+*.ipynb
+
+# Coverage reports
+.coverage
+htmlcov/
+coverage.xml
+
+# pytest
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
