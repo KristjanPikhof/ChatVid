@@ -122,6 +122,7 @@ Supported formats:
 - **Text** (`.txt`)
 - **Markdown** (`.md`)
 - **Word** (`.docx`, `.doc`)
+- **HTML** (`.html`, `.htm`)
 
 #### 4. Build Embeddings
 
@@ -545,6 +546,7 @@ LLM settings (`LLM_MODEL`, `LLM_TEMPERATURE`, etc.) take effect immediately, no 
 | Markdown | `.md` | ✅ Full | Plain text |
 | Word | `.docx` | ✅ Full | Via python-docx |
 | Word (old) | `.doc` | ⚠️ Limited | May require conversion |
+| HTML | `.html`, `.htm` | ✅ Full | Via BeautifulSoup4, strips tags/scripts |
 
 ---
 
@@ -758,6 +760,8 @@ All automatically installed by `./cli.sh setup`:
 **Document Processing:**
 - `PyPDF2>=3.0.1` - PDF text extraction
 - `python-docx>=0.8.11` - Word document support
+- `beautifulsoup4>=4.12.0` - HTML/web content parsing
+- `lxml>=4.9.0` - HTML parser backend
 
 **API & Configuration:**
 - `openai>=1.0.0` - LLM integration (OpenAI and OpenRouter)

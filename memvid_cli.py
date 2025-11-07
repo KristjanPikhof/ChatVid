@@ -34,6 +34,14 @@ try:
 except ImportError:
     DOCX_SUPPORT = False
 
+# Try to import BeautifulSoup for HTML (optional)
+try:
+    from bs4 import BeautifulSoup
+
+    HTML_SUPPORT = True
+except ImportError:
+    HTML_SUPPORT = False
+
 # Project directories
 SCRIPT_DIR = Path(__file__).parent
 DATASETS_DIR = SCRIPT_DIR / "datasets"
@@ -332,6 +340,41 @@ def read_docx_file(file_path: Path) -> str:
         return ""
 
 
+def read_html_file(file_path: Path) -> str:
+    """Extract text from HTML file"""
+    if not HTML_SUPPORT:
+        print_warning(f"Skipping {file_path.name} - beautifulsoup4 not installed")
+        return ""
+
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            html_content = f.read()
+
+        # Parse HTML with BeautifulSoup
+        soup = BeautifulSoup(html_content, "lxml")
+
+        # Remove script and style elements
+        for script in soup(["script", "style"]):
+            script.decompose()
+
+        # Get text and clean up whitespace
+        text = soup.get_text()
+
+        # Break into lines and remove leading/trailing whitespace
+        lines = (line.strip() for line in text.splitlines())
+
+        # Break multi-headlines into a line each
+        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+
+        # Remove blank lines
+        text = "\n".join(chunk for chunk in chunks if chunk)
+
+        return text
+    except Exception as e:
+        print_error(f"Error reading HTML {file_path.name}: {e}")
+        return ""
+
+
 def process_file(file_path: Path) -> Optional[str]:
     """Process a file and extract text based on extension"""
     ext = file_path.suffix.lower()
@@ -342,6 +385,8 @@ def process_file(file_path: Path) -> Optional[str]:
         return read_pdf_file(file_path)
     elif ext in [".docx", ".doc"]:
         return read_docx_file(file_path)
+    elif ext in [".html", ".htm"]:
+        return read_html_file(file_path)
     else:
         print_warning(f"Skipping unsupported file type: {file_path.name}")
         return None
@@ -393,7 +438,7 @@ class Dataset:
     def get_documents(self) -> List[Path]:
         """Get all document files in the documents directory"""
         files = []
-        for ext in ["*.txt", "*.md", "*.pdf", "*.docx", "*.doc"]:
+        for ext in ["*.txt", "*.md", "*.pdf", "*.docx", "*.doc", "*.html", "*.htm"]:
             files.extend(self.documents_dir.glob(ext))
         return sorted(files)
 

@@ -4,7 +4,7 @@
 
 ### Document Format Support
 
-- [ ] **HTML/Web Content**
+- [x] **HTML/Web Content**
   - Add BeautifulSoup4 for HTML parsing
   - Extract text from HTML files (.html, .htm)
   - Support for cleaning HTML tags and scripts
@@ -413,4 +413,3 @@ Want to work on something from this list? Great!
 **Last Updated:** 2025-01-07
 **Status:** Active Development
 **Contributors Welcome:** Yes
-
