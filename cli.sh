@@ -88,11 +88,6 @@ if [ ! -f "$PYTHON_CLI" ]; then
     exit 1
 fi
 
-# If no arguments, show help
-if [ $# -eq 0 ]; then
-    python "$PYTHON_CLI" --help
-    exit 0
-fi
-
 # Delegate to Python CLI with all arguments
+# (If no arguments, Python CLI will start interactive menu)
 python "$PYTHON_CLI" "$@"

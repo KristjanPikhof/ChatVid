@@ -130,6 +130,168 @@ def get_env_str(key: str, default: str) -> str:
     return value.strip()
 
 
+# ============================================================================
+# Interactive Menu Helper Functions
+# ============================================================================
+
+def clear_screen():
+    """Clear terminal screen (cross-platform)"""
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+
+def print_menu_header(title: str):
+    """Print formatted menu header"""
+    print()
+    print("=" * 60)
+    print(f"  {title}")
+    print("=" * 60)
+    print()
+
+
+def pause_for_user(message: str = "Press Enter to continue..."):
+    """Pause and wait for user to press Enter"""
+    print()
+    input(f"ℹ️  {message}")
+
+
+def get_menu_choice(max_choice: int, allow_zero: bool = True, prompt: str = "Enter choice") -> int:
+    """Get and validate numeric menu choice from user"""
+    min_choice = 0 if allow_zero else 1
+
+    while True:
+        try:
+            choice_str = input(f"\n{prompt} ({min_choice}-{max_choice}): ").strip()
+
+            if not choice_str:
+                print_warning("Please enter a number")
+                continue
+
+            choice = int(choice_str)
+
+            if choice < min_choice or choice > max_choice:
+                print_warning(f"Please enter a number between {min_choice} and {max_choice}")
+                continue
+
+            return choice
+
+        except ValueError:
+            print_warning("Please enter a valid number")
+        except KeyboardInterrupt:
+            print()
+            print_warning("Operation cancelled")
+            return 0 if allow_zero else -1
+
+
+def confirm_action(prompt: str, require_name: str = None) -> bool:
+    """
+    Ask user to confirm an action
+
+    Args:
+        prompt: Question to ask user
+        require_name: If provided, user must type this exact string to confirm
+
+    Returns:
+        True if confirmed, False otherwise
+    """
+    print()
+    if require_name:
+        print_warning(prompt)
+        response = input(f"Type '{require_name}' to confirm: ").strip()
+        return response == require_name
+    else:
+        response = input(f"{prompt} (y/n): ").strip().lower()
+        return response in ['y', 'yes']
+
+
+def print_dataset_list(datasets: list, with_numbers: bool = True, show_status: bool = True) -> dict:
+    """
+    Print formatted list of datasets
+
+    Args:
+        datasets: List of Dataset objects
+        with_numbers: Show numbers for selection
+        show_status: Show status indicators
+
+    Returns:
+        Dictionary mapping choice numbers to Dataset objects
+    """
+    if not datasets:
+        print_info("No datasets found")
+        print_info("Use 'Create New Dataset' to get started")
+        return {}
+
+    print()
+    dataset_map = {}
+
+    for i, dataset in enumerate(datasets, 1):
+        # Get dataset info
+        doc_count = len(list(dataset.documents_dir.glob("*.*"))) if dataset.documents_dir.exists() else 0
+        has_embeddings = dataset.has_embeddings()
+
+        # Build status line
+        prefix = f"{i}. " if with_numbers else "  "
+        status = ""
+
+        if show_status:
+            if has_embeddings:
+                status = f"[✓ Built, {doc_count} docs]"
+            elif doc_count > 0:
+                status = f"[⚠️  Not built, {doc_count} docs]"
+            else:
+                status = "[📁 Empty]"
+
+        print(f"{prefix}{dataset.name:<30} {status}")
+
+        if with_numbers:
+            dataset_map[i] = dataset
+
+    print()
+    return dataset_map
+
+
+def select_dataset(purpose: str = "work with", allow_cancel: bool = True) -> Dataset:
+    """
+    Interactive dataset selection menu
+
+    Args:
+        purpose: Description of what the dataset will be used for
+        allow_cancel: If True, user can cancel selection
+
+    Returns:
+        Selected Dataset object, or None if cancelled
+    """
+    # Get all dataset directories
+    dataset_dirs = [d for d in DATASETS_DIR.iterdir() if d.is_dir()]
+
+    if not dataset_dirs:
+        print_warning(f"No datasets found to {purpose}")
+        print_info("Create a new dataset first")
+        return None
+
+    # Create Dataset objects
+    datasets = [Dataset(d.name) for d in sorted(dataset_dirs)]
+
+    if len(datasets) == 1:
+        # Auto-select if only one dataset
+        dataset = datasets[0]
+        print_info(f"Using dataset: {dataset.name}")
+        return dataset
+
+    # Multiple datasets - show selection menu
+    print_menu_header(f"Select Dataset to {purpose.title()}")
+    dataset_map = print_dataset_list(datasets, with_numbers=True, show_status=True)
+
+    if allow_cancel:
+        print("0. Cancel")
+
+    choice = get_menu_choice(len(datasets), allow_zero=allow_cancel)
+
+    if choice == 0 and allow_cancel:
+        return None
+
+    return dataset_map.get(choice)
+
+
 def read_text_file(file_path: Path) -> str:
     """Read plain text file"""
     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -238,6 +400,451 @@ class Dataset:
     def has_embeddings(self) -> bool:
         """Check if embeddings have been built"""
         return self.video_file.exists() and self.index_file.exists()
+
+
+# ============================================================================
+# Command Functions
+# ============================================================================
+
+def cmd_help(args):
+    """Display comprehensive help and documentation"""
+    clear_screen()
+    print_header("ChatVid Help & Documentation")
+
+    print("=" * 70)
+    print("COMMAND REFERENCE")
+    print("=" * 70)
+    print()
+
+    commands = [
+        ("setup", "Configure API key (OpenAI or OpenRouter)",
+         "./cli.sh setup"),
+        ("create <name>", "Create a new dataset",
+         "./cli.sh create my-project"),
+        ("build <name>", "Process documents and build embeddings",
+         "./cli.sh build my-project"),
+        ("chat <name>", "Start interactive chat with dataset",
+         "./cli.sh chat my-project"),
+        ("append <name>", "Add new/modified documents to existing dataset",
+         "./cli.sh append my-project"),
+        ("rebuild <name>", "Rebuild dataset from scratch",
+         "./cli.sh rebuild my-project"),
+        ("list", "Show all datasets with status",
+         "./cli.sh list"),
+        ("info <name>", "Show detailed dataset information",
+         "./cli.sh info my-project"),
+        ("delete <name>", "Delete a dataset (requires confirmation)",
+         "./cli.sh delete my-project"),
+        ("help", "Show this help documentation",
+         "./cli.sh help"),
+    ]
+
+    for cmd, desc, example in commands:
+        print(f"  {cmd:<20} {desc}")
+        print(f"  {'':20} Example: {example}")
+        print()
+
+    print("=" * 70)
+    print("CONFIGURATION REFERENCE")
+    print("=" * 70)
+    print()
+    print("Edit .env file to configure these settings:")
+    print()
+
+    config_vars = [
+        ("OPENAI_API_KEY", "Your API key (sk-... or sk-or-v1-...)", "Required"),
+        ("OPENAI_API_BASE", "API endpoint URL (for OpenRouter)", "Optional"),
+        ("LLM_MODEL", "Model name", "gpt-4o-mini-2024-07-18"),
+        ("CHUNK_SIZE", "Text chunk size (100-1000)", "300"),
+        ("CHUNK_OVERLAP", "Chunk overlap (20-200)", "50"),
+        ("LLM_TEMPERATURE", "Response creativity (0.0-2.0)", "0.7"),
+        ("LLM_MAX_TOKENS", "Max response length (100-4000)", "1000"),
+        ("CONTEXT_CHUNKS", "Retrieved chunks per query (1-20)", "10"),
+        ("MAX_HISTORY", "Conversation history depth (1-50)", "10"),
+    ]
+
+    print(f"  {'Variable':<20} {'Description':<40} {'Default'}")
+    print(f"  {'-'*20} {'-'*40} {'-'*15}")
+    for var, desc, default in config_vars:
+        print(f"  {var:<20} {desc:<40} {default}")
+    print()
+
+    print("=" * 70)
+    print("WORKFLOW TUTORIALS")
+    print("=" * 70)
+    print()
+
+    print("1. FIRST-TIME SETUP")
+    print("   " + "-" * 66)
+    print("   Step 1: Configure API")
+    print("           ./cli.sh setup")
+    print("           Choose provider (OpenAI or OpenRouter)")
+    print("           Enter your API key")
+    print()
+    print("   Step 2: Create dataset")
+    print("           ./cli.sh create my-docs")
+    print()
+    print("   Step 3: Add documents")
+    print("           cp your-files.pdf datasets/my-docs/documents/")
+    print()
+    print("   Step 4: Build embeddings")
+    print("           ./cli.sh build my-docs")
+    print()
+    print("   Step 5: Start chatting")
+    print("           ./cli.sh chat my-docs")
+    print()
+
+    print("2. DAILY USAGE")
+    print("   " + "-" * 66)
+    print("   Add new documents:")
+    print("           cp new-file.pdf datasets/my-docs/documents/")
+    print("           ./cli.sh append my-docs")
+    print()
+    print("   Chat with dataset:")
+    print("           ./cli.sh chat my-docs")
+    print("           Type your questions, use 'exit' to quit")
+    print()
+
+    print("3. SWITCHING PROVIDERS")
+    print("   " + "-" * 66)
+    print("   OpenAI → OpenRouter:")
+    print("           Edit .env file:")
+    print("           - Uncomment: OPENAI_API_BASE=https://openrouter.ai/api/v1")
+    print("           - Update: OPENAI_API_KEY=sk-or-v1-your-key")
+    print("           - Change: LLM_MODEL=openai/gpt-4o")
+    print()
+    print("   OpenRouter → OpenAI:")
+    print("           Edit .env file:")
+    print("           - Comment out: # OPENAI_API_BASE=https://openrouter.ai/api/v1")
+    print("           - Update: OPENAI_API_KEY=sk-your-key")
+    print("           - Change: LLM_MODEL=gpt-4o-mini-2024-07-18")
+    print()
+
+    print("4. CONFIGURATION PRESETS")
+    print("   " + "-" * 66)
+    print("   Technical Documents:")
+    print("           CHUNK_SIZE=400, CHUNK_OVERLAP=80")
+    print("           LLM_TEMPERATURE=0.3, LLM_MODEL=gpt-4o")
+    print()
+    print("   Creative Content:")
+    print("           CHUNK_SIZE=300, CHUNK_OVERLAP=50")
+    print("           LLM_TEMPERATURE=1.0, LLM_MODEL=gpt-4o")
+    print()
+    print("   Cost Optimization:")
+    print("           LLM_MODEL=gpt-4o-mini-2024-07-18")
+    print("           CONTEXT_CHUNKS=7, LLM_MAX_TOKENS=500")
+    print()
+
+    print("=" * 70)
+    print("TROUBLESHOOTING")
+    print("=" * 70)
+    print()
+
+    issues = [
+        ("401 Authentication Error",
+         "- Check API key format (OpenAI: sk-..., OpenRouter: sk-or-v1-...)\n" +
+         "         - Verify OPENAI_API_BASE matches your provider\n" +
+         "         - Run: cat .env | grep OPENAI"),
+
+        ("No documents found",
+         "- Check files are in: datasets/<name>/documents/\n" +
+         "         - Supported formats: PDF, TXT, MD, DOCX\n" +
+         "         - Run: ls datasets/<name>/documents/"),
+
+        ("Build command fails",
+         "- Ensure documents contain readable text\n" +
+         "         - Check CHUNK_SIZE and CHUNK_OVERLAP in .env\n" +
+         "         - Try: ./cli.sh rebuild <name>"),
+
+        ("Chat returns wrong info",
+         "- Increase CONTEXT_CHUNKS in .env (try 15)\n" +
+         "         - Rebuild dataset: ./cli.sh rebuild <name>\n" +
+         "         - Check if documents were processed correctly"),
+
+        ("Model not found",
+         "- OpenAI format: gpt-4o-mini-2024-07-18\n" +
+         "         - OpenRouter format: openai/gpt-4o\n" +
+         "         - Match LLM_MODEL format to your provider"),
+    ]
+
+    for issue, solution in issues:
+        print(f"  {issue}:")
+        print(f"         {solution}")
+        print()
+
+    print("=" * 70)
+    print("NEED MORE HELP?")
+    print("=" * 70)
+    print()
+    print("  Documentation: Check README.md, QUICKSTART.md, PROVIDER_SETUP.md")
+    print("  Interactive: Run './cli.sh' to use the interactive menu")
+    print("  Command help: Run './cli.sh <command> --help' for specific help")
+    print()
+
+    pause_for_user()
+
+
+def manage_files(dataset: Dataset):
+    """Interactive file management menu for a dataset"""
+    while True:
+        clear_screen()
+        print_menu_header(f"Manage Files: {dataset.name}")
+
+        # Get all documents
+        docs = dataset.get_documents()
+
+        if not docs:
+            print_warning("No documents in this dataset")
+            print_info(f"Add files to: {dataset.documents_dir}")
+            print()
+            print("Options:")
+            print("1. Open documents folder")
+            print("0. Back to main menu")
+
+            choice = get_menu_choice(1)
+            if choice == 0:
+                return
+            elif choice == 1:
+                import subprocess
+                import platform
+                folder = str(dataset.documents_dir)
+                if platform.system() == "Darwin":  # macOS
+                    subprocess.run(["open", folder])
+                elif platform.system() == "Windows":
+                    subprocess.run(["explorer", folder])
+                else:  # Linux
+                    subprocess.run(["xdg-open", folder])
+                pause_for_user("Folder opened. Press Enter when done...")
+            continue
+
+        # Display files with numbers
+        print("Documents:")
+        file_map = {}
+        for i, doc in enumerate(docs, 1):
+            size_kb = doc.stat().st_size / 1024
+            print(f"{i}. {doc.name:<40} ({size_kb:.1f} KB)")
+            file_map[i] = doc
+
+        print()
+        print("Options:")
+        print("a. View file details")
+        print("b. Remove file from dataset")
+        print("c. Open documents folder")
+        print("0. Back to main menu")
+        print()
+
+        choice_str = input("Enter choice (number, a, b, c, or 0): ").strip().lower()
+
+        if choice_str == "0":
+            return
+        elif choice_str == "a":
+            # View file details
+            file_num = get_menu_choice(len(docs), allow_zero=False, prompt="Enter file number to view")
+            if file_num > 0 and file_num in file_map:
+                doc = file_map[file_num]
+                clear_screen()
+                print_header(f"File Details: {doc.name}")
+                print(f"Path: {doc}")
+                print(f"Size: {doc.stat().st_size / 1024:.1f} KB")
+                print(f"Type: {doc.suffix}")
+                print(f"Modified: {datetime.fromtimestamp(doc.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')}")
+
+                # Check if in metadata
+                metadata = dataset.load_metadata()
+                if str(doc) in metadata.get("files_processed", {}):
+                    print(f"Status: ✓ Processed in embeddings")
+                else:
+                    print(f"Status: Not yet processed")
+
+                pause_for_user()
+
+        elif choice_str == "b":
+            # Remove file
+            file_num = get_menu_choice(len(docs), allow_zero=False, prompt="Enter file number to remove")
+            if file_num > 0 and file_num in file_map:
+                doc = file_map[file_num]
+                if confirm_action(f"Remove {doc.name} from dataset?"):
+                    try:
+                        doc.unlink()
+                        print_success(f"Removed: {doc.name}")
+                        print_warning("Run 'rebuild' to update embeddings")
+                        pause_for_user()
+                    except Exception as e:
+                        print_error(f"Failed to remove file: {e}")
+                        pause_for_user()
+
+        elif choice_str == "c":
+            # Open folder
+            import subprocess
+            import platform
+            folder = str(dataset.documents_dir)
+            if platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", folder])
+            elif platform.system() == "Windows":
+                subprocess.run(["explorer", folder])
+            else:  # Linux
+                subprocess.run(["xdg-open", folder])
+            pause_for_user("Folder opened. Press Enter when done...")
+
+
+def interactive_menu():
+    """Main interactive menu - entry point for menu mode"""
+    while True:
+        clear_screen()
+        print_menu_header("ChatVid Interactive Menu")
+
+        print("What would you like to do?")
+        print()
+        print(" 1. Setup / Configure API")
+        print(" 2. Create New Dataset")
+        print(" 3. Build Dataset (Process Documents)")
+        print(" 4. Chat with Dataset")
+        print(" 5. Append Documents to Dataset")
+        print(" 6. Rebuild Dataset")
+        print(" 7. List All Datasets")
+        print(" 8. Dataset Info")
+        print(" 9. Manage Dataset Files")
+        print("10. Delete Dataset")
+        print("11. Help & Documentation")
+        print(" 0. Exit")
+
+        choice = get_menu_choice(11)
+
+        if choice == 0:
+            print()
+            print_success("Goodbye!")
+            sys.exit(0)
+
+        elif choice == 1:
+            # Setup / Configure API
+            clear_screen()
+            class Args:
+                pass
+            cmd_setup(Args())
+            pause_for_user()
+
+        elif choice == 2:
+            # Create New Dataset
+            clear_screen()
+            print_header("Create New Dataset")
+            name = input("Enter dataset name (letters, numbers, hyphens, underscores): ").strip()
+
+            if not name:
+                print_warning("Dataset name cannot be empty")
+                pause_for_user()
+                continue
+
+            if not name.replace("-", "").replace("_", "").isalnum():
+                print_error("Dataset name can only contain letters, numbers, hyphens, and underscores")
+                pause_for_user()
+                continue
+
+            class Args:
+                pass
+            args = Args()
+            args.name = name
+            cmd_create(args)
+            pause_for_user()
+
+        elif choice == 3:
+            # Build Dataset
+            dataset = select_dataset(purpose="build")
+            if dataset:
+                clear_screen()
+                class Args:
+                    pass
+                args = Args()
+                args.name = dataset.name
+                args.rebuild = False
+                cmd_build(args)
+                pause_for_user()
+
+        elif choice == 4:
+            # Chat with Dataset
+            dataset = select_dataset(purpose="chat with")
+            if dataset:
+                if not dataset.has_embeddings():
+                    print_error(f"Dataset '{dataset.name}' has no embeddings")
+                    print_info("Build the dataset first (option 3)")
+                    pause_for_user()
+                    continue
+
+                clear_screen()
+                class Args:
+                    pass
+                args = Args()
+                args.name = dataset.name
+                cmd_chat(args)
+                # Don't pause after chat - it has its own exit
+
+        elif choice == 5:
+            # Append Documents
+            dataset = select_dataset(purpose="append to")
+            if dataset:
+                clear_screen()
+                class Args:
+                    pass
+                args = Args()
+                args.name = dataset.name
+                cmd_append(args)
+                pause_for_user()
+
+        elif choice == 6:
+            # Rebuild Dataset
+            dataset = select_dataset(purpose="rebuild")
+            if dataset:
+                clear_screen()
+                class Args:
+                    pass
+                args = Args()
+                args.name = dataset.name
+                cmd_rebuild(args)
+                pause_for_user()
+
+        elif choice == 7:
+            # List All Datasets
+            clear_screen()
+            class Args:
+                pass
+            cmd_list(Args())
+            pause_for_user()
+
+        elif choice == 8:
+            # Dataset Info
+            dataset = select_dataset(purpose="view info for")
+            if dataset:
+                clear_screen()
+                class Args:
+                    pass
+                args = Args()
+                args.name = dataset.name
+                cmd_info(args)
+                pause_for_user()
+
+        elif choice == 9:
+            # Manage Files
+            dataset = select_dataset(purpose="manage files for")
+            if dataset:
+                manage_files(dataset)
+
+        elif choice == 10:
+            # Delete Dataset
+            dataset = select_dataset(purpose="delete", allow_cancel=True)
+            if dataset:
+                clear_screen()
+                class Args:
+                    pass
+                args = Args()
+                args.name = dataset.name
+                cmd_delete(args)
+                pause_for_user()
+
+        elif choice == 11:
+            # Help
+            clear_screen()
+            class Args:
+                pass
+            cmd_help(Args())
 
 
 def cmd_setup(args):
@@ -515,9 +1122,38 @@ def cmd_build(args):
     # Build video
     if encoder.chunks:
         print_info("Building embeddings (this may take a while)...")
-        stats = encoder.build_video(
-            str(dataset.video_file), str(dataset.index_file), show_progress=True
-        )
+        print()
+
+        # Suppress memvid library warnings and debug output during video encoding
+        import warnings
+        import sys
+        import io
+
+        # Create a filter for stdout that removes debug lines
+        class DebugFilter(io.TextIOBase):
+            def __init__(self, original_stdout):
+                self.original_stdout = original_stdout
+
+            def write(self, text):
+                # Filter out debug messages from memvid
+                if not (text.startswith('🐛') or 'docker_mount=' in text):
+                    self.original_stdout.write(text)
+                return len(text)
+
+            def flush(self):
+                self.original_stdout.flush()
+
+        old_stdout = sys.stdout
+        sys.stdout = DebugFilter(old_stdout)
+
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning, module="memvid")
+                stats = encoder.build_video(
+                    str(dataset.video_file), str(dataset.index_file), show_progress=True
+                )
+        finally:
+            sys.stdout = old_stdout
 
         # Update metadata
         metadata["last_build"] = datetime.now().isoformat()
@@ -729,6 +1365,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  ./cli.sh                          # Start interactive menu (default)
   ./cli.sh setup                    # First-time setup
   ./cli.sh create my-project        # Create new dataset
   ./cli.sh list                     # List all datasets
@@ -736,7 +1373,15 @@ Examples:
   ./cli.sh chat my-project          # Start chatting
   ./cli.sh append my-project        # Add new documents
   ./cli.sh rebuild my-project       # Rebuild from scratch
+  ./cli.sh help                     # Show comprehensive help
         """,
+    )
+
+    # Add global flags
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Start interactive menu mode"
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -781,10 +1426,19 @@ Examples:
     parser_delete = subparsers.add_parser("delete", help="Delete a dataset")
     parser_delete.add_argument("name", help="Dataset name")
 
+    # Help command
+    subparsers.add_parser("help", help="Show comprehensive help and documentation")
+
     args = parser.parse_args()
 
+    # Check for interactive mode flag
+    if args.interactive:
+        interactive_menu()
+        return
+
+    # If no command provided, start interactive menu
     if not args.command:
-        parser.print_help()
+        interactive_menu()
         return
 
     # Route to appropriate command
@@ -798,6 +1452,7 @@ Examples:
         "rebuild": cmd_rebuild,
         "chat": cmd_chat,
         "delete": cmd_delete,
+        "help": cmd_help,
     }
 
     if args.command in commands:
