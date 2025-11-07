@@ -29,6 +29,7 @@ except ImportError as e:
 # Try to import python-docx (optional)
 try:
     import docx
+
     DOCX_SUPPORT = True
 except ImportError:
     DOCX_SUPPORT = False
@@ -47,12 +48,13 @@ load_dotenv(ENV_FILE)
 
 class Colors:
     """Terminal colors"""
-    RED = '\033[0;31m'
-    GREEN = '\033[0;32m'
-    YELLOW = '\033[1;33m'
-    BLUE = '\033[0;34m'
-    CYAN = '\033[0;36m'
-    NC = '\033[0m'  # No Color
+
+    RED = "\033[0;31m"
+    GREEN = "\033[0;32m"
+    YELLOW = "\033[1;33m"
+    BLUE = "\033[0;34m"
+    CYAN = "\033[0;36m"
+    NC = "\033[0m"  # No Color
 
 
 def print_info(msg):
@@ -72,9 +74,9 @@ def print_warning(msg):
 
 
 def print_header(msg):
-    print(f"\n{Colors.CYAN}{'='*70}{Colors.NC}")
+    print(f"\n{Colors.CYAN}{'=' * 70}{Colors.NC}")
     print(f"{Colors.CYAN}{msg.center(70)}{Colors.NC}")
-    print(f"{Colors.CYAN}{'='*70}{Colors.NC}\n")
+    print(f"{Colors.CYAN}{'=' * 70}{Colors.NC}\n")
 
 
 def get_file_hash(file_path: Path) -> str:
@@ -88,7 +90,7 @@ def get_file_hash(file_path: Path) -> str:
 
 def read_text_file(file_path: Path) -> str:
     """Read plain text file"""
-    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
         return f.read()
 
 
@@ -96,7 +98,7 @@ def read_pdf_file(file_path: Path) -> str:
     """Extract text from PDF file"""
     text = []
     try:
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             pdf_reader = PyPDF2.PdfReader(f)
             for page in pdf_reader.pages:
                 page_text = page.extract_text()
@@ -130,11 +132,11 @@ def process_file(file_path: Path) -> Optional[str]:
     """Process a file and extract text based on extension"""
     ext = file_path.suffix.lower()
 
-    if ext in ['.txt', '.md', '.markdown']:
+    if ext in [".txt", ".md", ".markdown"]:
         return read_text_file(file_path)
-    elif ext == '.pdf':
+    elif ext == ".pdf":
         return read_pdf_file(file_path)
-    elif ext in ['.docx', '.doc']:
+    elif ext in [".docx", ".doc"]:
         return read_docx_file(file_path)
     else:
         print_warning(f"Skipping unsupported file type: {file_path.name}")
@@ -168,26 +170,26 @@ class Dataset:
             "created": datetime.now().isoformat(),
             "last_build": None,
             "files_processed": {},
-            "total_chunks": 0
+            "total_chunks": 0,
         }
         self.save_metadata(metadata)
 
     def load_metadata(self) -> Dict:
         """Load dataset metadata"""
         if self.metadata_file.exists():
-            with open(self.metadata_file, 'r') as f:
+            with open(self.metadata_file, "r") as f:
                 return json.load(f)
         return {}
 
     def save_metadata(self, metadata: Dict):
         """Save dataset metadata"""
-        with open(self.metadata_file, 'w') as f:
+        with open(self.metadata_file, "w") as f:
             json.dump(metadata, f, indent=2)
 
     def get_documents(self) -> List[Path]:
         """Get all document files in the documents directory"""
         files = []
-        for ext in ['*.txt', '*.md', '*.pdf', '*.docx', '*.doc']:
+        for ext in ["*.txt", "*.md", "*.pdf", "*.docx", "*.doc"]:
             files.extend(self.documents_dir.glob(ext))
         return sorted(files)
 
@@ -218,13 +220,13 @@ def cmd_setup(args):
 
     if choice == "1":
         api_key = input("Enter your OpenAI API key (sk-...): ").strip()
-        with open(ENV_FILE, 'w') as f:
+        with open(ENV_FILE, "w") as f:
             f.write(f"OPENAI_API_KEY={api_key}\n")
         print_success("OpenAI API key saved to .env")
 
     elif choice == "2":
         api_key = input("Enter your OpenRouter API key (sk-or-...): ").strip()
-        with open(ENV_FILE, 'w') as f:
+        with open(ENV_FILE, "w") as f:
             f.write(f"OPENAI_API_BASE=https://openrouter.ai/api/v1\n")
             f.write(f"OPENAI_API_KEY={api_key}\n")
         print_success("OpenRouter API key saved to .env")
@@ -243,8 +245,10 @@ def cmd_create(args):
     name = args.name
 
     # Validate name
-    if not name.replace('-', '').replace('_', '').isalnum():
-        print_error("Dataset name can only contain letters, numbers, hyphens, and underscores")
+    if not name.replace("-", "").replace("_", "").isalnum():
+        print_error(
+            "Dataset name can only contain letters, numbers, hyphens, and underscores"
+        )
         return
 
     dataset = Dataset(name)
@@ -283,8 +287,8 @@ def cmd_list(args):
         print(f"   Created: {metadata.get('created', 'Unknown')[:19]}")
 
         if dataset.has_embeddings():
-            last_build = metadata.get('last_build', 'Unknown')
-            if last_build != 'Unknown':
+            last_build = metadata.get("last_build", "Unknown")
+            if last_build != "Unknown":
                 last_build = last_build[:19]
             print(f"   Last build: {last_build}")
             print(f"   Chunks: {metadata.get('total_chunks', 0)}")
@@ -358,7 +362,7 @@ def cmd_build(args):
     print_header(f"Building: {dataset.name}")
 
     # Check if this is rebuild or first build
-    is_rebuild = args.rebuild if hasattr(args, 'rebuild') else False
+    is_rebuild = args.rebuild if hasattr(args, "rebuild") else False
     metadata = dataset.load_metadata()
 
     if is_rebuild and dataset.has_embeddings():
@@ -366,7 +370,7 @@ def cmd_build(args):
         for f in [dataset.video_file, dataset.index_file, dataset.faiss_file]:
             if f.exists():
                 f.unlink()
-        metadata['files_processed'] = {}
+        metadata["files_processed"] = {}
 
     # Initialize encoder
     encoder = MemvidEncoder()
@@ -384,17 +388,11 @@ def cmd_build(args):
             print_warning(f"  Skipped (no text extracted)")
             continue
 
-        # Add to encoder
+        # Add to encoder with source attribution
+        # Prepend source filename to help LLM distinguish between documents
         file_hash = get_file_hash(doc_path)
-        encoder.add_text(
-            text,
-            chunk_size=300,
-            overlap=50,
-            metadata={
-                "source": doc_path.name,
-                "file_hash": file_hash
-            }
-        )
+        prefixed_text = f"[Source: {doc_path.name}]\n\n{text}"
+        encoder.add_text(prefixed_text, chunk_size=300, overlap=50)
 
         files_processed[doc_path.name] = file_hash
         print_success(f"  Added ({len(text)} characters)")
@@ -405,15 +403,13 @@ def cmd_build(args):
     if encoder.chunks:
         print_info("Building embeddings (this may take a while)...")
         stats = encoder.build_video(
-            str(dataset.video_file),
-            str(dataset.index_file),
-            show_progress=True
+            str(dataset.video_file), str(dataset.index_file), show_progress=True
         )
 
         # Update metadata
-        metadata['last_build'] = datetime.now().isoformat()
-        metadata['files_processed'] = files_processed
-        metadata['total_chunks'] = stats['total_chunks']
+        metadata["last_build"] = datetime.now().isoformat()
+        metadata["files_processed"] = files_processed
+        metadata["total_chunks"] = stats["total_chunks"]
         dataset.save_metadata(metadata)
 
         print()
@@ -440,7 +436,7 @@ def cmd_append(args):
         return
 
     metadata = dataset.load_metadata()
-    existing_files = metadata.get('files_processed', {})
+    existing_files = metadata.get("files_processed", {})
 
     docs = dataset.get_documents()
     new_docs = []
@@ -448,7 +444,10 @@ def cmd_append(args):
     # Find new or modified documents
     for doc_path in docs:
         current_hash = get_file_hash(doc_path)
-        if doc_path.name not in existing_files or existing_files[doc_path.name] != current_hash:
+        if (
+            doc_path.name not in existing_files
+            or existing_files[doc_path.name] != current_hash
+        ):
             new_docs.append(doc_path)
 
     if not new_docs:
@@ -479,10 +478,12 @@ def cmd_rebuild(args):
         cmd_build(args)
         return
 
-    print_warning(f"This will delete existing embeddings for '{args.name}' and rebuild from scratch.")
+    print_warning(
+        f"This will delete existing embeddings for '{args.name}' and rebuild from scratch."
+    )
     confirm = input("Continue? (y/N): ").strip().lower()
 
-    if confirm != 'y':
+    if confirm != "y":
         print_info("Cancelled")
         return
 
@@ -515,23 +516,40 @@ def cmd_chat(args):
     # Initialize chat
     try:
         base_url = os.getenv("OPENAI_API_BASE")
+
+        # Load the existing config from index and update chat settings
+        import json
+
+        with open(dataset.index_file, "r") as f:
+            index_data = json.load(f)
+
+        # Use existing config and override chat settings
+        chat_config = index_data.get("config", {})
+        chat_config["chat"] = {
+            "max_history": 10,
+            "context_chunks": 10,  # Increased from default 5
+        }
+        chat_config["llm"]["temperature"] = 0.7
+        chat_config["llm"]["max_tokens"] = 1000
+
         chat = MemvidChat(
             video_file=str(dataset.video_file),
             index_file=str(dataset.index_file),
             llm_provider="openai",
-            llm_model="gpt-3.5-turbo",
-            llm_api_key=api_key
+            llm_model="gpt-4o-mini-2024-07-18",
+            llm_api_key=api_key,
+            config=chat_config,
         )
 
         # Override base_url if using OpenRouter
-        if base_url and hasattr(chat.llm_client, 'client'):
+        if base_url and hasattr(chat.llm_client, "client"):
             chat.llm_client.client.base_url = base_url
 
         print_success("Chat initialized successfully!")
         print()
         print_info("Type your questions and press Enter.")
         print_info("Type 'quit' or 'exit' to end the session.")
-        print(f"{Colors.CYAN}{'='*70}{Colors.NC}\n")
+        print(f"{Colors.CYAN}{'=' * 70}{Colors.NC}\n")
 
         # Start interactive chat
         chat.interactive_chat()
@@ -552,7 +570,9 @@ def cmd_delete(args):
         print_error(f"Dataset '{args.name}' not found")
         return
 
-    print_warning(f"This will permanently delete the dataset '{args.name}' and all its files.")
+    print_warning(
+        f"This will permanently delete the dataset '{args.name}' and all its files."
+    )
     confirm = input("Type the dataset name to confirm: ").strip()
 
     if confirm != args.name:
@@ -560,6 +580,7 @@ def cmd_delete(args):
         return
 
     import shutil
+
     shutil.rmtree(dataset.path)
     print_success(f"Dataset '{args.name}' deleted")
 
@@ -577,44 +598,50 @@ Examples:
   ./cli.sh chat my-project          # Start chatting
   ./cli.sh append my-project        # Add new documents
   ./cli.sh rebuild my-project       # Rebuild from scratch
-        """
+        """,
     )
 
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Setup command
-    subparsers.add_parser('setup', help='Configure API key')
+    subparsers.add_parser("setup", help="Configure API key")
 
     # Create command
-    parser_create = subparsers.add_parser('create', help='Create new dataset')
-    parser_create.add_argument('name', help='Dataset name')
+    parser_create = subparsers.add_parser("create", help="Create new dataset")
+    parser_create.add_argument("name", help="Dataset name")
 
     # List command
-    subparsers.add_parser('list', help='List all datasets')
+    subparsers.add_parser("list", help="List all datasets")
 
     # Info command
-    parser_info = subparsers.add_parser('info', help='Show dataset information')
-    parser_info.add_argument('name', help='Dataset name')
+    parser_info = subparsers.add_parser("info", help="Show dataset information")
+    parser_info.add_argument("name", help="Dataset name")
 
     # Build command
-    parser_build = subparsers.add_parser('build', help='Build embeddings from documents')
-    parser_build.add_argument('name', help='Dataset name')
+    parser_build = subparsers.add_parser(
+        "build", help="Build embeddings from documents"
+    )
+    parser_build.add_argument("name", help="Dataset name")
 
     # Append command
-    parser_append = subparsers.add_parser('append', help='Add new documents to existing dataset')
-    parser_append.add_argument('name', help='Dataset name')
+    parser_append = subparsers.add_parser(
+        "append", help="Add new documents to existing dataset"
+    )
+    parser_append.add_argument("name", help="Dataset name")
 
     # Rebuild command
-    parser_rebuild = subparsers.add_parser('rebuild', help='Rebuild embeddings from scratch')
-    parser_rebuild.add_argument('name', help='Dataset name')
+    parser_rebuild = subparsers.add_parser(
+        "rebuild", help="Rebuild embeddings from scratch"
+    )
+    parser_rebuild.add_argument("name", help="Dataset name")
 
     # Chat command
-    parser_chat = subparsers.add_parser('chat', help='Start interactive chat')
-    parser_chat.add_argument('name', help='Dataset name')
+    parser_chat = subparsers.add_parser("chat", help="Start interactive chat")
+    parser_chat.add_argument("name", help="Dataset name")
 
     # Delete command
-    parser_delete = subparsers.add_parser('delete', help='Delete a dataset')
-    parser_delete.add_argument('name', help='Dataset name')
+    parser_delete = subparsers.add_parser("delete", help="Delete a dataset")
+    parser_delete.add_argument("name", help="Dataset name")
 
     args = parser.parse_args()
 
@@ -624,15 +651,15 @@ Examples:
 
     # Route to appropriate command
     commands = {
-        'setup': cmd_setup,
-        'create': cmd_create,
-        'list': cmd_list,
-        'info': cmd_info,
-        'build': cmd_build,
-        'append': cmd_append,
-        'rebuild': cmd_rebuild,
-        'chat': cmd_chat,
-        'delete': cmd_delete,
+        "setup": cmd_setup,
+        "create": cmd_create,
+        "list": cmd_list,
+        "info": cmd_info,
+        "build": cmd_build,
+        "append": cmd_append,
+        "rebuild": cmd_rebuild,
+        "chat": cmd_chat,
+        "delete": cmd_delete,
     }
 
     if args.command in commands:
