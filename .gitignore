@@ -58,6 +58,9 @@ datasets/test*/
 datasets/temp*/
 datasets/tmp*/
 
+# Output json
+output/conversation_*
+
 # PyPDF2 cache
 .pypdf2_cache/
 

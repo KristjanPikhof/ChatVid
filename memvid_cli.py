@@ -650,6 +650,7 @@ def cmd_chat(args):
         print_info(f"Chat settings: context_chunks={context_chunks}, max_history={max_history}")
         print()
 
+        # Initialize chat
         chat = MemvidChat(
             video_file=str(dataset.video_file),
             index_file=str(dataset.index_file),
@@ -659,9 +660,22 @@ def cmd_chat(args):
             config=chat_config,
         )
 
-        # Override base_url if using OpenRouter
-        if base_url and hasattr(chat.llm_client, "client"):
-            chat.llm_client.client.base_url = base_url
+        # Override base_url if using OpenRouter or other custom endpoints
+        # This needs to be done immediately after initialization
+        if base_url:
+            print_info(f"Using custom API endpoint: {base_url}")
+
+            # The memvid library wraps the OpenAI client in a provider object
+            # We need to recreate the OpenAI client within the provider with the correct base_url
+            if hasattr(chat.llm_client, "provider") and hasattr(chat.llm_client.provider, "client"):
+                import openai
+                chat.llm_client.provider.client = openai.OpenAI(
+                    api_key=api_key,
+                    base_url=base_url
+                )
+                print_info("✓ OpenRouter endpoint configured")
+            else:
+                print_warning("⚠ Could not configure custom endpoint - using default")
 
         print_success("Chat initialized successfully!")
         print()

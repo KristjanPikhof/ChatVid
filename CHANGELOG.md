@@ -16,6 +16,7 @@ All notable changes to ChatVid will be documented in this file.
 ### Changed
 - `cmd_build`: Now reads chunk settings from environment instead of hardcoded values
 - `cmd_chat`: Now reads LLM parameters from environment instead of hardcoded values
+- `cmd_chat`: Fixed OpenRouter integration by recreating OpenAI client with correct base_url
 - `cmd_setup`: Generates full `.env` file with provider-specific defaults
   - OpenAI setup → uses `gpt-4o-mini-2024-07-18`
   - OpenRouter setup → uses `openai/gpt-4o` (correct format for OpenRouter)
@@ -40,6 +41,10 @@ All notable changes to ChatVid will be documented in this file.
 - ✅ Automatic validation with helpful warnings
 - ✅ Backward compatible (uses defaults if env vars not set)
 
+### Fixed
+- **OpenRouter Integration**: Chat now works correctly with OpenRouter by recreating the OpenAI client with proper base_url
+- Previously caused 401 authentication errors when using OpenRouter API keys
+
 ### Breaking Changes
 None - fully backward compatible
 
@@ -48,6 +53,8 @@ None - fully backward compatible
 - Added configuration presets for different use cases
 - Updated QUICKSTART.md with configuration info
 - Enhanced `.env.example` with detailed comments
+- Added PROVIDER_SETUP.md - Complete guide for OpenAI vs OpenRouter
+- Added OPENROUTER_FIX.md - Technical details of OpenRouter fix
 
 ## [1.0.2] - 2025-01-07
 
