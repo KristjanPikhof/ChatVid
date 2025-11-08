@@ -12,6 +12,10 @@ from .text import TextProcessor
 from .pdf import PDFProcessor
 from .docx import DOCXProcessor
 from .html import HTMLProcessor
+from .spreadsheet import SpreadsheetProcessor
+from .rtf import RTFProcessor
+from .epub import EPUBProcessor
+from .powerpoint import PowerPointProcessor
 
 __all__ = [
     "DocumentProcessor",
@@ -20,4 +24,8 @@ __all__ = [
     "PDFProcessor",
     "DOCXProcessor",
     "HTMLProcessor",
+    "SpreadsheetProcessor",
+    "RTFProcessor",
+    "EPUBProcessor",
+    "PowerPointProcessor",
 ]

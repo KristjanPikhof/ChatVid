@@ -857,7 +857,8 @@ def interactive_menu():
                 args = Args()
                 args.name = dataset.name
                 cmd_chat(args)
-                # Don't pause after chat - it has its own exit
+                # Chat has its own exit message, just return to menu
+                pause_for_user()
 
         elif choice == 5:
             # Append Documents
@@ -1153,7 +1154,19 @@ def cmd_build(args):
 
     if not docs:
         print_error(f"No documents found in {dataset.documents_dir}")
-        print_info("Add PDF, TXT, MD, or DOCX files to the documents/ folder")
+
+        # Get supported extensions dynamically from ProcessorRegistry
+        try:
+            from chatvid.processors import ProcessorRegistry
+            supported_exts = sorted(ProcessorRegistry.get_supported_extensions())
+            if supported_exts:
+                exts_display = ", ".join(supported_exts)
+                print_info(f"Supported formats: {exts_display}")
+            else:
+                print_info("Add document files to the documents/ folder")
+        except:
+            print_info("Add document files to the documents/ folder")
+
         return
 
     print_header(f"Building: {dataset.name}")

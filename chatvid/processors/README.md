@@ -236,6 +236,10 @@ Never return `None` - always return empty string `""` on error.
 | PDF | `.pdf` | `PyPDF2` | ✅ Active |
 | Word | `.docx`, `.doc` | `python-docx` | ✅ Active |
 | HTML | `.html`, `.htm` | `beautifulsoup4`, `lxml` | ✅ Active |
+| Spreadsheet | `.xlsx`, `.xls`, `.csv` | `pandas`, `openpyxl`, `xlrd`, `tabulate` | ✅ Active |
+| RTF | `.rtf` | `striprtf` | ✅ Active |
+| EPUB | `.epub` | `ebooklib`, `bs4` | ✅ Active |
+| PowerPoint | `.pptx` | `python-pptx` | ✅ Active |
 
 ## Troubleshooting
 
