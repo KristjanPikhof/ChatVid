@@ -1,0 +1,174 @@
+"""
+Configuration management for ChatVid.
+
+Provides type-safe configuration dataclasses with validation and environment variable loading.
+"""
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+
+@dataclass
+class ChunkingConfig:
+    """Configuration for text chunking."""
+
+    chunk_size: int = 500
+    chunk_overlap: int = 50
+
+    def __post_init__(self):
+        """Validate configuration values."""
+        if self.chunk_size <= 0:
+            raise ValueError(f"chunk_size must be positive, got {self.chunk_size}")
+        if self.chunk_overlap < 0:
+            raise ValueError(f"chunk_overlap must be non-negative, got {self.chunk_overlap}")
+        if self.chunk_overlap >= self.chunk_size:
+            raise ValueError(f"chunk_overlap ({self.chunk_overlap}) must be less than chunk_size ({self.chunk_size})")
+
+
+@dataclass
+class LLMConfig:
+    """Configuration for LLM provider."""
+
+    provider: str = "openrouter"
+    base_url: str = "https://openrouter.ai/api/v1"
+    api_key: Optional[str] = None
+    model: str = "meta-llama/llama-3.1-8b-instruct:free"
+    embedding_model: str = "text-embedding-3-small"
+    temperature: float = 0.7
+    max_tokens: int = 2000
+    top_k: int = 5
+
+    def __post_init__(self):
+        """Validate configuration values."""
+        if self.temperature < 0.0 or self.temperature > 2.0:
+            raise ValueError(f"temperature must be between 0.0 and 2.0, got {self.temperature}")
+        if self.max_tokens <= 0:
+            raise ValueError(f"max_tokens must be positive, got {self.max_tokens}")
+        if self.top_k <= 0:
+            raise ValueError(f"top_k must be positive, got {self.top_k}")
+
+        # Warning for missing API key (not error, as it may be set later)
+        # Only warn if building embeddings, not during normal operation
+        if not self.api_key and self.provider == "openrouter":
+            # Don't warn during import, only when actually used
+            pass
+
+
+@dataclass
+class ChatConfig:
+    """Configuration for chat interface."""
+
+    system_prompt: str = "You are a helpful assistant that answers questions based on the provided context."
+    context_separator: str = "\n---\n"
+    max_history: int = 10
+
+    def __post_init__(self):
+        """Validate configuration values."""
+        if self.max_history < 0:
+            raise ValueError(f"max_history must be non-negative, got {self.max_history}")
+
+
+@dataclass
+class Config:
+    """Main configuration container."""
+
+    chunking: ChunkingConfig
+    llm: LLMConfig
+    chat: ChatConfig
+
+    @classmethod
+    def from_env(cls) -> "Config":
+        """Create configuration from environment variables.
+
+        Environment Variables:
+            CHUNK_SIZE: Text chunk size (default: 500)
+            CHUNK_OVERLAP: Overlap between chunks (default: 50)
+
+            LLM_PROVIDER: LLM provider name (default: openrouter)
+            LLM_BASE_URL: Base URL for LLM API (default: https://openrouter.ai/api/v1)
+            OPENROUTER_API_KEY: API key for OpenRouter
+            LLM_MODEL: Model to use (default: meta-llama/llama-3.1-8b-instruct:free)
+            EMBEDDING_MODEL: Embedding model (default: text-embedding-3-small)
+            LLM_TEMPERATURE: Temperature for generation (default: 0.7)
+            LLM_MAX_TOKENS: Maximum tokens to generate (default: 2000)
+            TOP_K: Number of context chunks to retrieve (default: 5)
+
+            SYSTEM_PROMPT: System prompt for chat (default: helpful assistant)
+            CONTEXT_SEPARATOR: Separator between context chunks (default: \n---\n)
+            MAX_HISTORY: Maximum chat history length (default: 10)
+
+        Returns:
+            Config instance with values from environment or defaults
+
+        Raises:
+            ValueError: If any configuration value is invalid
+        """
+        # Helper functions for type-safe env reading
+        def get_env_str(key: str, default: str) -> str:
+            return os.getenv(key, default)
+
+        def get_env_int(key: str, default: int) -> int:
+            value = os.getenv(key)
+            if value is None:
+                return default
+            try:
+                return int(value)
+            except ValueError:
+                raise ValueError(f"Environment variable {key}={value} is not a valid integer")
+
+        def get_env_float(key: str, default: float) -> float:
+            value = os.getenv(key)
+            if value is None:
+                return default
+            try:
+                return float(value)
+            except ValueError:
+                raise ValueError(f"Environment variable {key}={value} is not a valid float")
+
+        # Build configuration from environment
+        chunking = ChunkingConfig(
+            chunk_size=get_env_int("CHUNK_SIZE", 500),
+            chunk_overlap=get_env_int("CHUNK_OVERLAP", 50),
+        )
+
+        # API key with backward compatibility
+        # Try OPENROUTER_API_KEY first, then fall back to OPENAI_API_KEY
+        api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
+
+        # Base URL with backward compatibility
+        # Try LLM_BASE_URL first, then fall back to OPENAI_API_BASE
+        base_url = os.getenv("LLM_BASE_URL") or os.getenv("OPENAI_API_BASE") or "https://openrouter.ai/api/v1"
+
+        llm = LLMConfig(
+            provider=get_env_str("LLM_PROVIDER", "openrouter"),
+            base_url=base_url,
+            api_key=api_key,
+            model=get_env_str("LLM_MODEL", "meta-llama/llama-3.1-8b-instruct:free"),
+            embedding_model=get_env_str("EMBEDDING_MODEL", "text-embedding-3-small"),
+            temperature=get_env_float("LLM_TEMPERATURE", 0.7),
+            max_tokens=get_env_int("LLM_MAX_TOKENS", 2000),
+            top_k=get_env_int("CONTEXT_CHUNKS", 5),  # Use CONTEXT_CHUNKS for backward compat
+        )
+
+        chat = ChatConfig(
+            system_prompt=get_env_str(
+                "SYSTEM_PROMPT",
+                "You are a helpful assistant that answers questions based on the provided context."
+            ),
+            context_separator=get_env_str("CONTEXT_SEPARATOR", "\n---\n"),
+            max_history=get_env_int("MAX_HISTORY", 10),
+        )
+
+        return cls(chunking=chunking, llm=llm, chat=chat)
+
+    def validate(self) -> None:
+        """Validate entire configuration.
+
+        Raises:
+            ValueError: If any configuration is invalid
+        """
+        # Dataclass __post_init__ already validates individual components
+        # This method is for cross-component validation if needed in the future
+        pass

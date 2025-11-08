@@ -3,6 +3,15 @@
 ChatVid CLI - Memvid Dataset Management Tool
 
 A complete CLI tool for managing document datasets with embeddings and interactive chat.
+
+Architecture (v1.3.0+):
+    - Modular plugin system for document processors (chatvid/processors/)
+    - Type-safe configuration management (chatvid/config.py)
+    - Legacy functions kept for backward compatibility
+    - Auto-registration and dependency checking
+
+For new format support: Create processor in chatvid/processors/
+For configuration changes: Update chatvid/config.py dataclasses
 """
 
 import os
@@ -26,21 +35,9 @@ except ImportError as e:
     print("Run: ./cli.sh setup")
     sys.exit(1)
 
-# Try to import python-docx (optional)
-try:
-    import docx
-
-    DOCX_SUPPORT = True
-except ImportError:
-    DOCX_SUPPORT = False
-
-# Try to import BeautifulSoup for HTML (optional)
-try:
-    from bs4 import BeautifulSoup
-
-    HTML_SUPPORT = True
-except ImportError:
-    HTML_SUPPORT = False
+# Import modular components (v1.3.0+)
+from chatvid.processors import ProcessorRegistry
+from chatvid.config import Config
 
 # Project directories
 SCRIPT_DIR = Path(__file__).parent
@@ -96,8 +93,20 @@ def get_file_hash(file_path: Path) -> str:
     return hash_md5.hexdigest()
 
 
+# ==============================================================================
+# Legacy Configuration Helpers (v1.0-1.2)
+# ==============================================================================
+# These functions are kept for backward compatibility.
+# New code should use chatvid.config.Config.from_env() instead.
+# ==============================================================================
+
+
 def get_env_int(key: str, default: int, min_val: int, max_val: int) -> int:
-    """Get integer from environment with validation"""
+    """Get integer from environment with validation
+
+    DEPRECATED: Use chatvid.config.Config.from_env() instead.
+    Kept for backward compatibility only.
+    """
     value = os.getenv(key)
     if value is None:
         return default
@@ -114,7 +123,11 @@ def get_env_int(key: str, default: int, min_val: int, max_val: int) -> int:
 
 
 def get_env_float(key: str, default: float, min_val: float, max_val: float) -> float:
-    """Get float from environment with validation"""
+    """Get float from environment with validation
+
+    DEPRECATED: Use chatvid.config.Config.from_env() instead.
+    Kept for backward compatibility only.
+    """
     value = os.getenv(key)
     if value is None:
         return default
@@ -131,7 +144,11 @@ def get_env_float(key: str, default: float, min_val: float, max_val: float) -> f
 
 
 def get_env_str(key: str, default: str) -> str:
-    """Get string from environment with default"""
+    """Get string from environment with default
+
+    DEPRECATED: Use chatvid.config.Config.from_env() instead.
+    Kept for backward compatibility only.
+    """
     value = os.getenv(key)
     if value is None or value.strip() == "":
         return default
@@ -300,14 +317,30 @@ def select_dataset(purpose: str = "work with", allow_cancel: bool = True) -> Dat
     return dataset_map.get(choice)
 
 
+# ==============================================================================
+# Legacy Document Processing Functions (v1.0-1.2)
+# ==============================================================================
+# These functions are kept for backward compatibility.
+# New code should use chatvid.processors.ProcessorRegistry instead.
+# ==============================================================================
+
+
 def read_text_file(file_path: Path) -> str:
-    """Read plain text file"""
+    """Read plain text file
+
+    DEPRECATED: Use chatvid.processors.TextProcessor instead.
+    Kept for backward compatibility only.
+    """
     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
         return f.read()
 
 
 def read_pdf_file(file_path: Path) -> str:
-    """Extract text from PDF file"""
+    """Extract text from PDF file
+
+    DEPRECATED: Use chatvid.processors.PDFProcessor instead.
+    Kept for backward compatibility only.
+    """
     text = []
     try:
         with open(file_path, "rb") as f:
@@ -323,30 +356,36 @@ def read_pdf_file(file_path: Path) -> str:
 
 
 def read_docx_file(file_path: Path) -> str:
-    """Extract text from DOCX file"""
-    if not DOCX_SUPPORT:
-        print_warning(f"Skipping {file_path.name} - python-docx not installed")
-        return ""
+    """Extract text from DOCX file
 
+    DEPRECATED: Use chatvid.processors.DOCXProcessor instead.
+    Kept for backward compatibility only.
+    """
     try:
+        import docx
         doc = docx.Document(file_path)
         text = []
         for paragraph in doc.paragraphs:
             if paragraph.text.strip():
                 text.append(paragraph.text)
         return "\n\n".join(text)
+    except ImportError:
+        print_warning(f"Skipping {file_path.name} - python-docx not installed")
+        return ""
     except Exception as e:
         print_error(f"Error reading DOCX {file_path.name}: {e}")
         return ""
 
 
 def read_html_file(file_path: Path) -> str:
-    """Extract text from HTML file"""
-    if not HTML_SUPPORT:
-        print_warning(f"Skipping {file_path.name} - beautifulsoup4 not installed")
-        return ""
+    """Extract text from HTML file
 
+    DEPRECATED: Use chatvid.processors.HTMLProcessor instead.
+    Kept for backward compatibility only.
+    """
     try:
+        from bs4 import BeautifulSoup
+
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             html_content = f.read()
 
@@ -370,23 +409,19 @@ def read_html_file(file_path: Path) -> str:
         text = "\n".join(chunk for chunk in chunks if chunk)
 
         return text
+    except ImportError:
+        print_warning(f"Skipping {file_path.name} - beautifulsoup4 not installed")
+        return ""
     except Exception as e:
         print_error(f"Error reading HTML {file_path.name}: {e}")
         return ""
 
 
 def process_file(file_path: Path) -> Optional[str]:
-    """Process a file and extract text based on extension"""
-    ext = file_path.suffix.lower()
-
-    if ext in [".txt", ".md", ".markdown"]:
-        return read_text_file(file_path)
-    elif ext == ".pdf":
-        return read_pdf_file(file_path)
-    elif ext in [".docx", ".doc"]:
-        return read_docx_file(file_path)
-    elif ext in [".html", ".htm"]:
-        return read_html_file(file_path)
+    """Process a file and extract text based on extension using ProcessorRegistry"""
+    processor = ProcessorRegistry.get_processor(file_path)
+    if processor:
+        return processor.extract_text(file_path)
     else:
         print_warning(f"Skipping unsupported file type: {file_path.name}")
         return None
@@ -436,10 +471,12 @@ class Dataset:
             json.dump(metadata, f, indent=2)
 
     def get_documents(self) -> List[Path]:
-        """Get all document files in the documents directory"""
+        """Get all document files in the documents directory using ProcessorRegistry"""
         files = []
-        for ext in ["*.txt", "*.md", "*.pdf", "*.docx", "*.doc", "*.html", "*.htm"]:
-            files.extend(self.documents_dir.glob(ext))
+        extensions = ProcessorRegistry.get_supported_extensions()
+        for ext in extensions:
+            pattern = f"*{ext}"
+            files.extend(self.documents_dir.glob(pattern))
         return sorted(files)
 
     def has_embeddings(self) -> bool:
@@ -621,7 +658,7 @@ def cmd_help(args):
     print("NEED MORE HELP?")
     print("=" * 70)
     print()
-    print("  Documentation: Check README.md, QUICKSTART.md, PROVIDER_SETUP.md")
+    print("  Documentation: Check README.md and PROVIDER_SETUP.md")
     print("  Interactive: Run './cli.sh' to use the interactive menu")
     print("  Command help: Run './cli.sh <command> --help' for specific help")
     print()
@@ -1135,9 +1172,15 @@ def cmd_build(args):
     # Initialize encoder
     encoder = MemvidEncoder()
 
-    # Get chunking configuration from environment
-    chunk_size = get_env_int("CHUNK_SIZE", 300, 100, 1000)
-    chunk_overlap = get_env_int("CHUNK_OVERLAP", 50, 20, 200)
+    # Get chunking configuration
+    try:
+        config = Config.from_env()
+        chunk_size = config.chunking.chunk_size
+        chunk_overlap = config.chunking.chunk_overlap
+    except Exception as e:
+        print_warning(f"Config error: {e}, using fallback")
+        chunk_size = get_env_int("CHUNK_SIZE", 300, 100, 1000)
+        chunk_overlap = get_env_int("CHUNK_OVERLAP", 50, 20, 200)
 
     print_info(f"Processing {len(docs)} documents...")
     print_info(f"Chunk settings: size={chunk_size}, overlap={chunk_overlap}")
@@ -1298,8 +1341,27 @@ def cmd_chat(args):
         print_info(f"Run: ./cli.sh build {args.name}")
         return
 
+    # Get configuration
+    try:
+        config = Config.from_env()
+        api_key = config.llm.api_key
+        base_url = config.llm.base_url
+        llm_model = config.llm.model
+        llm_temperature = config.llm.temperature
+        llm_max_tokens = config.llm.max_tokens
+        context_chunks = config.llm.top_k
+        max_history = config.chat.max_history
+    except Exception as e:
+        print_warning(f"Config error: {e}, using fallback")
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_API_BASE")
+        llm_model = get_env_str("LLM_MODEL", "gpt-4o-mini-2024-07-18")
+        llm_temperature = get_env_float("LLM_TEMPERATURE", 0.7, 0.0, 2.0)
+        llm_max_tokens = get_env_int("LLM_MAX_TOKENS", 1000, 100, 4000)
+        context_chunks = get_env_int("CONTEXT_CHUNKS", 10, 1, 20)
+        max_history = get_env_int("MAX_HISTORY", 10, 1, 50)
+
     # Check for API key
-    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         print_error("API key not configured")
         print_info("Run: ./cli.sh setup")
@@ -1309,14 +1371,6 @@ def cmd_chat(args):
 
     # Initialize chat
     try:
-        base_url = os.getenv("OPENAI_API_BASE")
-
-        # Get LLM configuration from environment
-        llm_model = get_env_str("LLM_MODEL", "gpt-4o-mini-2024-07-18")
-        llm_temperature = get_env_float("LLM_TEMPERATURE", 0.7, 0.0, 2.0)
-        llm_max_tokens = get_env_int("LLM_MAX_TOKENS", 1000, 100, 4000)
-        context_chunks = get_env_int("CONTEXT_CHUNKS", 10, 1, 20)
-        max_history = get_env_int("MAX_HISTORY", 10, 1, 50)
 
         # Load the existing config from index and update chat settings
         import json
