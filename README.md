@@ -12,11 +12,7 @@ A complete command-line tool for managing document datasets with AI-powered embe
 - ✅ Self-contained virtual environment management
 - ✅ Automatic dependency installation
 - ✅ Multiple dataset support
-<<<<<<< HEAD
 - ✅ **11 file format support**: Documents (PDF, DOCX, RTF, TXT, MD), Spreadsheets (XLSX, XLS, CSV), Presentations (PPTX), E-books (EPUB), Web (HTML)
-=======
-- ✅ Multi-format file support (PDF, TXT, MD)
->>>>>>> 113d03130469061e988815df487315854da925a6
 - ✅ Automatic embedding generation with source attribution
 - ✅ Interactive AI chat with your documents
 - ✅ Dataset versioning (append/rebuild)
@@ -29,14 +25,7 @@ A complete command-line tool for managing document datasets with AI-powered embe
 - ✅ **NEW**: Comprehensive help system
 
 ## Recent Updates
-### v1.3.0 (Latest) - HTML/Web Content Support
-- **Added**: Full HTML and web page parsing for `.html` and `.htm` files  
-- **New Functionality**: `read_html_file()` uses BeautifulSoup4 (`lxml` parser) to extract clean text  
-- **Automation**: Removes `<script>` and `<style>` tags automatically  
-- **Clean Output**: Normalizes whitespace and preserves readable structure  
-- **Integration**: HTML added to supported input formats and dataset glob patterns
 
-<<<<<<< HEAD
 ### v1.4.0 (Latest) - New Document Format Support
 - **Spreadsheets**: Excel (.xlsx, .xls) and CSV support with markdown table formatting
 - **RTF**: Rich Text Format support for legacy documents
@@ -64,36 +53,36 @@ A complete command-line tool for managing document datasets with AI-powered embe
 - **Fully Backward Compatible**: All existing CLI commands work unchanged
 =======
 ### v1.2.0 - Interactive Menu System
-- **Added**: Interactive menu-driven interface with numbered selection  
-- **Default Behavior**: Running `./cli.sh` with no arguments now starts menu  
-- **Dataset Selection**: Choose datasets from numbered list instead of typing names  
-- **File Management**: View, remove, and manage files interactively  
-- **Help Command**: `./cli.sh help` for integrated documentation  
-- **Zero Dependencies**: Uses native Python input(), works everywhere  
-- **Fully Backward Compatible**: All existing CLI commands still function  
+- **Added**: Interactive menu-driven interface with numbered selection
+- **Default Behavior**: Running `./cli.sh` with no arguments now starts menu
+- **Dataset Selection**: Choose datasets from numbered list instead of typing names
+- **File Management**: View, remove, and manage files interactively
+- **Help Command**: `./cli.sh help` for integrated documentation
+- **Zero Dependencies**: Uses native Python input(), works everywhere
+- **Fully Backward Compatible**: All existing CLI commands still function
 >>>>>>> 113d03130469061e988815df487315854da925a6
 
 ### v1.1.0 - Environment Variable Configuration
-- **Added**: `.env` configuration for all settings  
-- **Chunk Configuration**: `CHUNK_SIZE` and `CHUNK_OVERLAP` variable-driven  
-- **LLM Configuration**: Configure model, temperature, max tokens, and context chunks  
-- **Easy Experimentation**: Adjust behavior by editing `.env`  
-- **Auto-Setup**: `./cli.sh setup` generates all defaults automatically  
-- **Validation**: Automatic checks and helpful warnings  
+- **Added**: `.env` configuration for all settings
+- **Chunk Configuration**: `CHUNK_SIZE` and `CHUNK_OVERLAP` variable-driven
+- **LLM Configuration**: Configure model, temperature, max tokens, and context chunks
+- **Easy Experimentation**: Adjust behavior by editing `.env`
+- **Auto-Setup**: `./cli.sh setup` generates all defaults automatically
+- **Validation**: Automatic checks and helpful warnings
 
 ### v1.0.2 - Source Attribution Fix
-- **Fixed**: Cross-document data mixing removed  
-- **How**: Chunks now include `[Source: filename.pdf]` prefix  
-- **Impact**: AI outputs now tie correctly to original files  
-- **Action Required**: Rebuild datasets with `./cli.sh rebuild <name>`  
+- **Fixed**: Cross-document data mixing removed
+- **How**: Chunks now include `[Source: filename.pdf]` prefix
+- **Impact**: AI outputs now tie correctly to original files
+- **Action Required**: Rebuild datasets with `./cli.sh rebuild <name>`
 
 ### v1.0.1 - Chat Context Improvement
-- **Fixed**: Increased context retrieval window (5 → 10 chunks)  
-- **Impact**: Produces more complete and context-aware answers  
+- **Fixed**: Increased context retrieval window (5 → 10 chunks)
+- **Impact**: Produces more complete and context-aware answers
 
 ### v1.0.0 - Initial Release
-- **Fixed**: Removed invalid `metadata` parameter from memvid API  
-- **Impact**: Dataset build works as intended  
+- **Fixed**: Removed invalid `metadata` parameter from memvid API
+- **Impact**: Dataset build works as intended
 
 **Full version history:** See [CHANGELOG.md](CHANGELOG.md)
 
