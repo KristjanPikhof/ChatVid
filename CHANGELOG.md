@@ -3,42 +3,85 @@
 All notable changes to ChatVid will be documented in this file.
 
 ## [1.3.0] - 2025-01-07
+
+### Added - Modular Architecture Refactoring
+
+**Major architectural improvements** for better extensibility and maintainability:
+
+#### 1. Processor Plugin System (`chatvid/processors/`)
+- **Plugin Architecture**: Auto-registration pattern using `@ProcessorRegistry.register` decorator
+- **Modular Design**: Each file format has its own processor class with single responsibility
+- **Dependency Management**: Optional dependencies with graceful degradation via `is_available()` checks
+- **Easy Extension**: Add new formats by creating a single file in `chatvid/processors/`
+
+**New Processor Classes**:
+- `TextProcessor` - `.txt`, `.md`, `.markdown` (no dependencies)
+- `PDFProcessor` - `.pdf` via PyPDF2
+- `DOCXProcessor` - `.docx`, `.doc` via python-docx
+- `HTMLProcessor` - `.html`, `.htm` via BeautifulSoup4 + lxml
+
+**Plugin Registry**:
+- `ProcessorRegistry.register` - Auto-registration decorator
+- `ProcessorRegistry.get_processor(file_path)` - Get appropriate processor for file
+- `ProcessorRegistry.get_supported_extensions()` - List all registered extensions
+- `ProcessorRegistry.list_processors()` - Debug processor availability
+
+#### 2. Type-Safe Configuration System (`chatvid/config.py`)
+- **Dataclass-Based Configuration**: Type-safe config with validation
+- **Environment Variable Loading**: `Config.from_env()` reads from `.env` with fallbacks
+- **Validation**: `__post_init__` validation for all config values
+- **Modular Components**:
+  - `ChunkingConfig` - chunk_size, chunk_overlap with range validation
+  - `LLMConfig` - provider, base_url, api_key, model, embedding_model, temperature, max_tokens, top_k
+  - `ChatConfig` - system_prompt, context_separator, max_history
+  - `Config` - Container with `from_env()` factory method
+
+**Benefits**:
+- Centralized configuration management
+- Type safety and validation
+- Easy testing with mock configs
+- Clear separation of concerns
+
+#### 3. Code Cleanup and Simplification
+- **Removed ~56 lines of dead code** from `memvid_cli.py` after refactoring:
+  - Eliminated fallback import blocks (DOCX_SUPPORT, HTML_SUPPORT flags)
+  - Simplified `process_file()` from ~24 lines to 8 lines
+  - Simplified `Dataset.get_documents()` to use ProcessorRegistry
+  - Removed CONFIG_AVAILABLE wrapper redundancies
+  - Made legacy functions self-contained with internal imports
+  - Fixed documentation reference to deleted QUICKSTART.md
+
+**File Improvements**:
+- `memvid_cli.py`: 1620 lines → 1564 lines (3.5% reduction)
+- Cleaner imports with direct `from chatvid.processors import ProcessorRegistry`
+- Single code path per operation with proper exception handling
+- Legacy functions kept for backward compatibility with deprecation notices
+
 ### Added - HTML/Web Content Support
-- **HTML Support**: ChatVid now supports `.html` and `.htm` files as input for dataset building and chat.
-- **Dependencies**:
-  - `beautifulsoup4>=4.12.0` – HTML parsing and text extraction
-  - `lxml>=4.9.0` – High-performance parsing backend
-- **New Functionality (`memvid_cli.py`)**:
-  - Added optional `HTML_SUPPORT` flag for conditional import of HTML parsing modules.
-  - Implemented `read_html_file()` (lines 343–375):
-    - Parses HTML via BeautifulSoup using the `lxml` parser.
-    - Removes `<script>` and `<style>` elements.
-    - Extracts plain text content from remaining nodes.
-    - Normalizes whitespace and preserves layout where meaningful.
-  - Updated `process_file()` to route and handle `.html` / `.htm` extensions.
-  - Included HTML file patterns in `Dataset.get_documents()` glob expansion.
+- **HTML Support**: ChatVid now supports `.html` and `.htm` files via modular `HTMLProcessor`
+- **Dependencies**: `beautifulsoup4>=4.12.0`, `lxml>=4.9.0`
+- **Features**:
+  - ✅ HTML and web-page text extraction
+  - ✅ Automatic removal of non-content elements (`script`, `style`)
+  - ✅ Clean text normalization and whitespace handling
+  - ✅ Graceful degradation if dependencies not installed
 
 ### Documentation
-- **README.md**
-  - Expanded supported file formats to include HTML.
-  - Updated dependency table with BeautifulSoup4 and lxml.
-  - Clarified system requirements for optional components.
+- **README.md**: Updated with HTML format support and dependency table
+- **chatvid/processors/README.md**: Complete guide for adding new document formats
+- **Module Docstrings**: Updated to reflect v1.3.0 architecture
 
-### Features
-- ✅ HTML and web-page text extraction
-- ✅ Automatic removal of non-content elements (`script`, `style`)
-- ✅ Clean text normalization for readability
-- ✅ Structural preservation of nested content
-- ✅ Functional for both `.html` and `.htm` extensions
-- ✅ Graceful degradation if optional dependencies not present
-
-### Benefits
-- Enables integration of saved web pages into ChatVid datasets.
-- Uniform chat access across PDFs, DOCX, TXT, MD, and now HTML files.
-- No config changes required for existing datasets.
+### Architecture Benefits
+- 🎯 **Single Responsibility**: Each processor handles one format
+- 🔌 **Plugin Architecture**: Add formats without modifying core code
+- 🛡️ **Type Safety**: Validated configuration with dataclasses
+- 🧪 **Testable**: Modular components easy to test in isolation
+- 📦 **Maintainable**: Clear separation of concerns
+- 🚀 **Extensible**: Well-documented pattern for adding features
+- ⚡ **Performance**: No degradation, cleaner code paths
 
 ### Breaking Changes
-None – fully backward compatible with v1.2.0.
+None – fully backward compatible with v1.2.0. Legacy functions preserved with deprecation notices.
 
 ## [1.2.0] - 2025-01-07
 

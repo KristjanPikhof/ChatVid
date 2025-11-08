@@ -23,7 +23,15 @@ A complete command-line tool for managing document datasets with AI-powered embe
 
 ## Recent Updates
 
-### v1.2.0 (Latest) - Interactive Menu System
+### v1.3.0 (Latest) - Modular Architecture Refactoring
+- **Plugin System**: Modular processor architecture for easy format extension
+- **Type-Safe Config**: Dataclass-based configuration with validation
+- **HTML Support**: Added `.html` and `.htm` file support via BeautifulSoup4
+- **Architecture Benefits**: Single responsibility, plugin architecture, type safety
+- **Developer-Friendly**: Well-documented pattern in `chatvid/processors/README.md`
+- **Fully Backward Compatible**: All existing functionality preserved
+
+### v1.2.0 - Interactive Menu System
 - **Added**: Interactive menu-driven interface with numbered selection
 - **Default Behavior**: Running `./cli.sh` with no arguments now starts interactive menu
 - **Dataset Selection**: Choose datasets from numbered list instead of typing names
