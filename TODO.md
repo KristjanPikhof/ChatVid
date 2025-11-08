@@ -18,12 +18,12 @@
   - Dependencies: `pytesseract>=0.3.10`, `pdf2image>=1.16.0`
   - System deps: tesseract, poppler-utils
 
-- [ ] **RTF (Rich Text Format)**
+- [x] **RTF (Rich Text Format)**
   - Add RTF parsing support
   - Extract plain text from .rtf files
   - Dependencies: `striprtf>=0.0.26`
 
-- [ ] **EPUB (E-books)**
+- [x] **EPUB (E-books)**
   - Parse EPUB files for book content
   - Extract text from all chapters
   - Preserve chapter structure in metadata
@@ -31,13 +31,13 @@
 
 ### Enhanced Document Processing
 
-- [ ] **Spreadsheet Support (Excel, CSV)**
+- [x] **Spreadsheet Support (Excel, CSV)**
   - Extract text from Excel files (.xlsx, .xls)
   - Convert CSV to readable format
   - Option to include headers and cell descriptions
   - Dependencies: `openpyxl>=3.1.0`, `pandas>=2.0.0`
 
-- [ ] **Presentation Support (PowerPoint)**
+- [x] **Presentation Support (PowerPoint)**
   - Extract text from slides (.pptx, .ppt)
   - Include slide notes and titles
   - Dependencies: `python-pptx>=0.6.21`
