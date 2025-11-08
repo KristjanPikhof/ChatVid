@@ -2,6 +2,220 @@
 
 All notable changes to ChatVid will be documented in this file.
 
+## [1.4.0] - 2025-01-08
+
+### Added - New Document Format Support
+
+**Four new document processors** expanding format compatibility to 11 total file types:
+
+#### 1. Spreadsheet Processor (`chatvid/processors/spreadsheet.py`)
+- **Extensions**: `.xlsx`, `.xls`, `.csv`
+- **Dependencies**: pandas, openpyxl, xlrd, tabulate
+- **Features**:
+  - Multi-sheet Excel support (all sheets extracted automatically)
+  - Markdown table formatting for LLM-friendly structure
+  - Legacy .xls format support via xlrd engine
+  - CSV file processing with encoding detection (UTF-8, latin1)
+  - Configurable row limits via `MAX_SPREADSHEET_ROWS` environment variable
+  - Sheet-level separation with clear headers
+  - Table text wrapping (preserves all cell content)
+  - Truncation warnings when row limit reached
+  - Sheet metadata tracking (sheet names, row/column counts)
+
+#### 2. RTF Processor (`chatvid/processors/rtf.py`)
+- **Extensions**: `.rtf`
+- **Dependencies**: striprtf
+- **Features**:
+  - Rich Text Format document support
+  - Automatic encoding detection (cp1252, latin1, utf-8)
+  - Formatting code removal for clean plain text
+  - Whitespace normalization
+  - Minimal dependency footprint (12 KB)
+
+#### 3. EPUB Processor (`chatvid/processors/epub.py`)
+- **Extensions**: `.epub`
+- **Dependencies**: ebooklib, beautifulsoup4 (existing), lxml (existing)
+- **Features**:
+  - E-book format support (EPUB2 and EPUB3)
+  - Chapter-level extraction with numbered separators
+  - HTML content cleaning via BeautifulSoup
+  - Script and style tag removal
+  - Rich metadata extraction (title, author, publisher, language, chapter count)
+  - Preserves paragraph structure
+
+#### 4. PowerPoint Processor (`chatvid/processors/powerpoint.py`)
+- **Extensions**: `.pptx`
+- **Dependencies**: python-pptx
+- **Features**:
+  - Presentation slide text extraction
+  - Speaker notes extraction (clearly marked)
+  - Table content extraction (formatted as pipe-separated text)
+  - Slide-level separation with headers
+  - Title and body text extraction
+  - Slide metadata tracking (slide count, notes presence, author)
+  - **Note**: Legacy .ppt format not supported (python-pptx limitation)
+
+### Dependencies Added
+
+```
+# Spreadsheet support (Excel, CSV)
+pandas>=2.0.0           # Tabular data processing (~16.8 MB)
+openpyxl>=3.0.0         # Modern Excel (.xlsx) support
+xlrd>=2.0.0             # Legacy Excel (.xls) support
+tabulate>=0.9.0         # Markdown table formatting
+
+# RTF support
+striprtf>=0.0.26        # RTF text extraction
+
+# EPUB support
+ebooklib>=0.18          # EPUB parsing (EPUB2 and EPUB3)
+
+# PowerPoint support
+python-pptx>=0.6.21     # PowerPoint processing (.pptx only)
+```
+
+**Total New Dependencies Size**: ~17.6 MB (primarily pandas)
+
+### Enhanced
+
+#### Configuration System
+- **New Environment Variable**: `MAX_SPREADSHEET_ROWS`
+  - Default: 10,000 rows per sheet
+  - Range: 1,000-50,000
+  - Purpose: Prevents memory issues with large Excel/CSV files
+  - Configurable per deployment via `.env` file
+
+#### Format Coverage
+- **Before**: 5 formats (TXT, MD, PDF, DOCX, HTML)
+- **After**: 11 formats (added XLSX, XLS, CSV, RTF, EPUB, PPTX)
+- **Total Coverage**: Documents, spreadsheets, presentations, e-books, web content
+
+#### Documentation
+- **Processor README**: Updated with 4 new entries in Available Processors table
+- **`.env.example`**: Added MAX_SPREADSHEET_ROWS documentation with usage guidelines
+- **`requirements.txt`**: Organized with clear section comments
+
+### Benefits
+
+- 📊 **Business Documents**: Full support for Excel spreadsheets and PowerPoint presentations
+- 📚 **E-books**: EPUB support for technical books and documentation
+- 📝 **Legacy Formats**: RTF support for older Word documents
+- 🎯 **LLM-Optimized**: Markdown table formatting improves LLM comprehension
+- ⚙️ **Configurable**: Row limits prevent memory issues with large files
+- 🔌 **Plugin Architecture**: All processors follow established pattern for easy maintenance
+- 🛡️ **Robust**: Comprehensive error handling with graceful degradation
+
+### Technical Details
+
+#### Text Extraction Strategies
+
+**Spreadsheets**:
+- Multi-sheet processing with clear sheet separators
+- Markdown table format using `pandas.to_markdown()`
+- Text wrapping enabled (no cell truncation)
+- Automatic truncation at configurable row limit
+- Empty sheet detection and skipping
+
+**RTF**:
+- Multi-encoding fallback (cp1252 → utf-8 → latin1)
+- striprtf library for formatting code removal
+- Whitespace normalization for clean output
+
+**EPUB**:
+- Chapter-by-chapter extraction (ITEM_DOCUMENT filtering)
+- BeautifulSoup HTML parsing per chapter
+- Script/style tag removal
+- Paragraph structure preservation
+
+**PowerPoint**:
+- Slide-by-slide iteration
+- Title extraction (if present)
+- All shape text extraction
+- Table cell iteration with pipe-separated format
+- Speaker notes clearly marked
+
+#### Memory Management
+
+**Spreadsheets**:
+- Row limit prevents loading entire large files
+- Per-sheet processing (not all at once)
+- Configurable limits via environment variable
+- Truncation warnings logged
+
+**EPUB**:
+- Chapter-by-chapter processing (not entire book at once)
+- BeautifulSoup processes each chapter independently
+
+**PowerPoint**:
+- Slide-by-slide processing
+- No memory concerns for typical presentation sizes
+
+### Breaking Changes
+
+None - fully backward compatible with v1.3.0 and earlier versions.
+
+### Upgrade Guide
+
+#### For Existing Installations
+
+```bash
+# 1. Update dependencies
+pip install -r requirements.txt
+
+# 2. (Optional) Configure spreadsheet row limit
+echo "MAX_SPREADSHEET_ROWS=10000" >> .env
+
+# 3. Test with new formats
+cp your-spreadsheet.xlsx datasets/your-dataset/documents/
+./cli.sh build your-dataset
+./cli.sh chat your-dataset
+```
+
+#### New Installations
+
+All dependencies install automatically during setup:
+
+```bash
+./cli.sh setup  # Installs all dependencies including new ones
+```
+
+### Known Limitations
+
+1. **PowerPoint**: Legacy `.ppt` format NOT supported
+   - **Reason**: python-pptx library limitation
+   - **Workaround**: Convert .ppt to .pptx in PowerPoint/LibreOffice
+   - **Future**: Could add conversion layer via LibreOffice API
+
+2. **EPUB DRM**: DRM-protected EPUBs will fail
+   - **Reason**: ebooklib cannot decrypt DRM
+   - **Workaround**: Use DRM-free EPUBs only
+   - **Error Handling**: Graceful failure with clear error message
+
+3. **Large Spreadsheets**: Files with >10,000 rows per sheet truncated by default
+   - **Reason**: Memory management
+   - **Workaround**: Increase `MAX_SPREADSHEET_ROWS` in .env
+   - **Warning**: Truncation logged when limit reached
+
+### Testing Recommendations
+
+After upgrading, test each new format:
+
+```bash
+# Create test dataset
+./cli.sh create format-test
+
+# Add sample files
+cp sample.xlsx sample.csv datasets/format-test/documents/
+cp sample.rtf sample.epub datasets/format-test/documents/
+cp sample.pptx datasets/format-test/documents/
+
+# Build and verify
+./cli.sh build format-test
+
+# Test chat with questions about each format
+./cli.sh chat format-test
+```
+
 ## [1.3.0] - 2025-01-07
 
 ### Added - Modular Architecture Refactoring

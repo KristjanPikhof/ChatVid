@@ -9,7 +9,7 @@ A complete command-line tool for managing document datasets with AI-powered embe
 - ✅ Self-contained virtual environment management
 - ✅ Automatic dependency installation
 - ✅ Multiple dataset support
-- ✅ Multi-format file support (PDF, TXT, MD, DOCX)
+- ✅ **11 file format support**: Documents (PDF, DOCX, RTF, TXT, MD), Spreadsheets (XLSX, XLS, CSV), Presentations (PPTX), E-books (EPUB), Web (HTML)
 - ✅ Automatic embedding generation with source attribution
 - ✅ Interactive AI chat with your documents
 - ✅ Dataset versioning (append/rebuild)
@@ -23,13 +23,22 @@ A complete command-line tool for managing document datasets with AI-powered embe
 
 ## Recent Updates
 
-### v1.3.0 (Latest) - Modular Architecture Refactoring
+### v1.4.0 (Latest) - New Document Format Support
+- **Spreadsheets**: Excel (.xlsx, .xls) and CSV support with markdown table formatting
+- **RTF**: Rich Text Format support for legacy documents
+- **EPUB**: E-book support (EPUB2 and EPUB3) with chapter extraction
+- **PowerPoint**: Presentation support (.pptx) with slide text and speaker notes
+- **11 Total Formats**: TXT, MD, PDF, DOCX, HTML, XLSX, XLS, CSV, RTF, EPUB, PPTX
+- **Configurable**: `MAX_SPREADSHEET_ROWS` environment variable for memory management
+- **LLM-Optimized**: Markdown table formatting for better comprehension
+- **Fully Backward Compatible**: All existing functionality preserved
+
+### v1.3.0 - Modular Architecture Refactoring
 - **Plugin System**: Modular processor architecture for easy format extension
 - **Type-Safe Config**: Dataclass-based configuration with validation
 - **HTML Support**: Added `.html` and `.htm` file support via BeautifulSoup4
 - **Architecture Benefits**: Single responsibility, plugin architecture, type safety
 - **Developer-Friendly**: Well-documented pattern in `chatvid/processors/README.md`
-- **Fully Backward Compatible**: All existing functionality preserved
 
 ### v1.2.0 - Interactive Menu System
 - **Added**: Interactive menu-driven interface with numbered selection
@@ -63,6 +72,25 @@ A complete command-line tool for managing document datasets with AI-powered embe
 - **Impact**: Build command now works correctly
 
 **Full version history**: See [CHANGELOG.md](CHANGELOG.md)
+
+## Supported File Formats
+
+ChatVid supports 11 file formats across 5 categories:
+
+| Category | Formats | Extensions | Features |
+|----------|---------|------------|----------|
+| **Documents** | PDF, Word, RTF, Text, Markdown | `.pdf`, `.docx`, `.doc`, `.rtf`, `.txt`, `.md`, `.markdown` | Full text extraction, metadata |
+| **Spreadsheets** | Excel, CSV | `.xlsx`, `.xls`, `.csv` | Multi-sheet support, markdown tables, configurable row limits |
+| **Presentations** | PowerPoint | `.pptx` | Slides, speaker notes, tables |
+| **E-books** | EPUB | `.epub` | EPUB2/EPUB3, chapter extraction, metadata |
+| **Web Content** | HTML | `.html`, `.htm` | Clean text extraction, script/style removal |
+
+### Format-Specific Notes
+
+- **Spreadsheets**: Configurable row limit via `MAX_SPREADSHEET_ROWS` (default: 10,000) prevents memory issues
+- **PowerPoint**: Only `.pptx` supported (not legacy `.ppt` format)
+- **EPUB**: DRM-protected files not supported
+- **All Formats**: Source attribution included automatically for accurate LLM responses
 
 ## Quick Start
 
