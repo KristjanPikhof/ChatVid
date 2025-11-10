@@ -964,15 +964,9 @@ def cmd_setup(args):
 
     choice = input("Enter choice (1 or 2): ").strip()
 
-    # Load the template from .env.example
-    env_example_path = SCRIPT_DIR / ".env.example"
-    try:
-        with open(env_example_path, 'r') as f:
-            config_template = f.read()
-    except FileNotFoundError:
-        # Fallback to minimal config if .env.example not found
-        print_warning(".env.example not found, using minimal configuration")
-        config_template = """# ChatVid Configuration
+    # Use the template with proper placeholders for setup
+    # (Always use this template, not .env.example, since we need {api_config} and {llm_model} placeholders)
+    config_template = """# ChatVid Configuration
 
 # ============================================================================
 # API Configuration (Required)
