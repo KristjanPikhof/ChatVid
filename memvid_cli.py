@@ -847,6 +847,8 @@ def interactive_menu():
             dataset = select_dataset(purpose="build")
             if dataset:
                 clear_screen()
+                # Reload .env in case it was created/updated during setup
+                load_dotenv(ENV_FILE)
                 class Args:
                     pass
                 args = Args()
@@ -866,6 +868,8 @@ def interactive_menu():
                     continue
 
                 clear_screen()
+                # Reload .env in case it was created/updated during setup
+                load_dotenv(ENV_FILE)
                 class Args:
                     pass
                 args = Args()
@@ -879,6 +883,8 @@ def interactive_menu():
             dataset = select_dataset(purpose="append to")
             if dataset:
                 clear_screen()
+                # Reload .env in case it was created/updated during setup
+                load_dotenv(ENV_FILE)
                 class Args:
                     pass
                 args = Args()
@@ -891,6 +897,8 @@ def interactive_menu():
             dataset = select_dataset(purpose="rebuild")
             if dataset:
                 clear_screen()
+                # Reload .env in case it was created/updated during setup
+                load_dotenv(ENV_FILE)
                 class Args:
                     pass
                 args = Args()
