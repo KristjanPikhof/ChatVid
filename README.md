@@ -104,6 +104,45 @@ ChatVid supports 11 file formats across 5 categories:
 - **EPUB**: DRM-protected files not supported
 - **All Formats**: Source attribution included automatically for accurate LLM responses
 
+## System Requirements
+
+### Python Version
+
+ChatVid requires **Python 3.10, 3.11, 3.12, or 3.13**.
+
+The CLI script automatically detects and validates your Python installation:
+- **First run**: Detects suitable Python command (`python3` or `python`) and saves it
+- **Subsequent runs**: Uses saved command for fast startup (~10ms overhead)
+- **Auto-recovery**: Re-detects if saved command becomes invalid
+- **Smart detection**: Prefers `python3` over `python` for better cross-platform compatibility
+
+#### Manual Override
+
+If you need to use a specific Python executable (e.g., for pyenv/asdf users):
+
+```bash
+export CHATVID_PYTHON_CMD=/path/to/python3.12
+./cli.sh
+```
+
+#### Checking Your Python Version
+
+```bash
+python3 --version  # Should show 3.10.x, 3.11.x, 3.12.x, or 3.13.x
+# OR
+python --version   # If python3 is not available
+```
+
+#### Installing Python
+
+If you don't have a compatible Python version:
+
+- **macOS**: `brew install python@3.12`
+- **Ubuntu/Debian**: `sudo apt install python3.12`
+- **Windows**: `winget install Python.Python.3.12`
+- **Any OS**: Download from [python.org](https://www.python.org/downloads/)
+- **Version managers**: Use `pyenv`, `asdf`, or similar tools
+
 ## Quick Start
 
 **New in v1.2.0**: Interactive menu mode! Simply run `./cli.sh` and follow the numbered menus - no commands to memorize!

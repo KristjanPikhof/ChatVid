@@ -21,3 +21,13 @@ ebooklib>=0.18
 
 # PowerPoint support
 python-pptx>=0.6.21
+
+# Phase 2: Semantic chunking (v1.6.0)
+# Option 1: spaCy (more accurate, heavier)
+# spacy>=3.7.0,<3.8.0
+# Note: After installing spacy, download the English model:
+# python -m spacy download en_core_web_sm
+# spacy>=3.8.8
+# Option 2: NLTK (lighter, good accuracy)
+nltk>=3.8.1
+# Note: NLTK will auto-download required data on first use

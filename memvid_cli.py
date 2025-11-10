@@ -14,6 +14,8 @@ For new format support: Create processor in chatvid/processors/
 For configuration changes: Update chatvid/config.py dataclasses
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import json
@@ -274,7 +276,7 @@ def print_dataset_list(datasets: list, with_numbers: bool = True, show_status: b
     return dataset_map
 
 
-def select_dataset(purpose: str = "work with", allow_cancel: bool = True) -> Dataset:
+def select_dataset(purpose: str = "work with", allow_cancel: bool = True) -> 'Dataset':
     """
     Interactive dataset selection menu
 
@@ -962,8 +964,15 @@ def cmd_setup(args):
 
     choice = input("Enter choice (1 or 2): ").strip()
 
-    # Configuration template - {llm_model} will be replaced based on provider
-    config_template = """# ChatVid Configuration
+    # Load the template from .env.example
+    env_example_path = SCRIPT_DIR / ".env.example"
+    try:
+        with open(env_example_path, 'r') as f:
+            config_template = f.read()
+    except FileNotFoundError:
+        # Fallback to minimal config if .env.example not found
+        print_warning(".env.example not found, using minimal configuration")
+        config_template = """# ChatVid Configuration
 
 # ============================================================================
 # API Configuration (Required)
@@ -975,37 +984,38 @@ def cmd_setup(args):
 # Chunking Configuration (Build Phase)
 # ============================================================================
 
-# Size of text chunks in characters (affects how documents are split)
-# Range: 100-1000 | Default: 300
-CHUNK_SIZE=300
-
-# Overlap between consecutive chunks in characters (prevents information loss)
-# Range: 20-200 | Default: 50
+CHUNKING_STRATEGY=semantic
+CHUNK_SIZE=500
 CHUNK_OVERLAP=50
+MIN_CHUNK_SIZE=300
+MAX_CHUNK_SIZE=700
+OVERLAP_SENTENCES=1
+SENTENCE_BACKEND=nltk
+
+# ============================================================================
+# Document Processing Configuration (Build Phase)
+# ============================================================================
+
+MAX_SPREADSHEET_ROWS=10000
+ENABLE_METADATA_ENRICHMENT=true
+
+# ============================================================================
+# Adaptive Retrieval Configuration (Chat Phase)
+# ============================================================================
+
+ENABLE_ADAPTIVE_TOP_K=true
+MIN_TOP_K=5
+MAX_TOP_K=25
+DEBUG_ADAPTIVE=false
 
 # ============================================================================
 # LLM Configuration (Chat Phase)
 # ============================================================================
 
-# Model to use for chat responses
-# OpenAI: gpt-4o-mini-2024-07-18, gpt-4o, gpt-4-turbo, gpt-3.5-turbo
-# OpenRouter: openai/gpt-4o, anthropic/claude-3-sonnet, google/gemini-pro-1.5, etc.
 LLM_MODEL={llm_model}
-
-# Temperature controls response creativity (0.0 = focused, 2.0 = creative)
-# Range: 0.0-2.0 | Default: 0.7
 LLM_TEMPERATURE=0.7
-
-# Maximum tokens in response (controls response length)
-# Range: 100-4000 | Default: 1000
 LLM_MAX_TOKENS=1000
-
-# Number of text chunks to retrieve for each query
-# Range: 1-20 | Default: 10
 CONTEXT_CHUNKS=10
-
-# Number of conversation turns to remember (history depth)
-# Range: 1-50 | Default: 10
 MAX_HISTORY=10
 """
 
@@ -1202,38 +1212,107 @@ def cmd_build(args):
         config = Config.from_env()
         chunk_size = config.chunking.chunk_size
         chunk_overlap = config.chunking.chunk_overlap
+        chunking_strategy = config.chunking.chunking_strategy
+        min_chunk_size = config.chunking.min_chunk_size
+        max_chunk_size = config.chunking.max_chunk_size
+        overlap_sentences = config.chunking.overlap_sentences
     except Exception as e:
         print_warning(f"Config error: {e}, using fallback")
         chunk_size = get_env_int("CHUNK_SIZE", 300, 100, 1000)
         chunk_overlap = get_env_int("CHUNK_OVERLAP", 50, 20, 200)
+        chunking_strategy = get_env_str("CHUNKING_STRATEGY", "semantic")
+        min_chunk_size = get_env_int("MIN_CHUNK_SIZE", 300, 100, 1000)
+        max_chunk_size = get_env_int("MAX_CHUNK_SIZE", 700, 300, 2000)
+        overlap_sentences = get_env_int("OVERLAP_SENTENCES", 1, 0, 5)
 
     # Phase 1: Metadata enrichment configuration
     enable_metadata = os.getenv("ENABLE_METADATA_ENRICHMENT", "true").lower() == "true"
 
+    # Phase 2: Initialize chunker based on strategy
+    if chunking_strategy == "semantic":
+        from chatvid.chunking import SemanticChunker
+        try:
+            # Use regex backend for speed (NLTK is slow on large documents)
+            # Users can set SENTENCE_BACKEND env var to "nltk" or "spacy" if needed
+            sentence_backend = os.getenv("SENTENCE_BACKEND", "regex")
+
+            chunker = SemanticChunker(
+                min_chunk_size=min_chunk_size,
+                max_chunk_size=max_chunk_size,
+                target_chunk_size=chunk_size,
+                overlap_sentences=overlap_sentences,
+                backend=sentence_backend  # Default: regex (fast)
+            )
+
+            # Try to detect which backend will be used
+            try:
+                _, backend_used = chunker._get_tokenizer()
+                print_info(f"Chunking strategy: semantic (backend: {backend_used}, size range: {min_chunk_size}-{max_chunk_size})")
+            except:
+                print_info(f"Chunking strategy: semantic (size range: {min_chunk_size}-{max_chunk_size})")
+
+        except RuntimeError as e:
+            print_warning(f"Semantic chunking unavailable: {e}")
+            print_info("Falling back to fixed chunking")
+            chunking_strategy = "fixed"
+            chunker = None
+    else:
+        chunker = None
+        print_info(f"Chunking strategy: fixed (size: {chunk_size}, overlap: {chunk_overlap})")
+
     print_info(f"Processing {len(docs)} documents...")
-    print_info(f"Chunk settings: size={chunk_size}, overlap={chunk_overlap}")
     if enable_metadata:
         print_info(f"Metadata enrichment: enabled")
     print()
 
     files_processed = {}
+    all_chunks = []  # Collect chunks manually for semantic chunking
+
     for i, doc_path in enumerate(docs, 1):
         print(f"[{i}/{len(docs)}] Processing: {doc_path.name}")
 
         # Extract text (with metadata enrichment if enabled)
+        import sys
+        print(f"  Extracting text...", file=sys.stderr, flush=True)
         text = process_file(doc_path, enable_metadata=enable_metadata)
+
         if not text or len(text.strip()) < 10:
             print_warning(f"  Skipped (no text extracted)")
             continue
 
-        # Add to encoder with source attribution
+        print(f"  Extracted {len(text)} characters", file=sys.stderr, flush=True)
+
+        # Add source attribution
         # Prepend source filename to help LLM distinguish between documents
         file_hash = get_file_hash(doc_path)
         prefixed_text = f"[Source: {doc_path.name}]\n\n{text}"
-        encoder.add_text(prefixed_text, chunk_size=chunk_size, overlap=chunk_overlap)
+
+        # Chunk text based on strategy
+        if chunking_strategy == "semantic" and chunker:
+            # Use semantic chunker
+            try:
+                print(f"  Semantic chunking...", file=sys.stderr, flush=True)
+                chunks = chunker.chunk_text(prefixed_text)
+                all_chunks.extend(chunks)
+                print_success(f"  Added ({len(text)} characters, {len(chunks)} chunks)")
+            except Exception as e:
+                print_warning(f"  Semantic chunking failed: {e}, using fixed")
+                encoder.add_text(prefixed_text, chunk_size=chunk_size, overlap=chunk_overlap)
+                print_success(f"  Added ({len(text)} characters)")
+        else:
+            # Use fixed chunking (via MemvidEncoder)
+            encoder.add_text(prefixed_text, chunk_size=chunk_size, overlap=chunk_overlap)
+            print_success(f"  Added ({len(text)} characters)")
 
         files_processed[doc_path.name] = file_hash
-        print_success(f"  Added ({len(text)} characters)")
+
+    # If we used semantic chunking, add all chunks to encoder at once
+    if chunking_strategy == "semantic" and all_chunks:
+        print()
+        print_info(f"Adding {len(all_chunks)} semantic chunks to encoder...")
+        for chunk in all_chunks:
+            # Add each chunk as a separate text with size=len(chunk) to prevent re-chunking
+            encoder.add_text(chunk, chunk_size=len(chunk) + 1, overlap=0)
 
     print()
 
@@ -1277,6 +1356,18 @@ def cmd_build(args):
         metadata["last_build"] = datetime.now().isoformat()
         metadata["files_processed"] = files_processed
         metadata["total_chunks"] = stats["total_chunks"]
+
+        # Phase 2: Track chunking configuration for rebuild detection
+        metadata["chunking_strategy"] = chunking_strategy
+        metadata["chunking_config"] = {
+            "strategy": chunking_strategy,
+            "chunk_size": chunk_size,
+            "chunk_overlap": chunk_overlap if chunking_strategy == "fixed" else None,
+            "min_chunk_size": min_chunk_size if chunking_strategy == "semantic" else None,
+            "max_chunk_size": max_chunk_size if chunking_strategy == "semantic" else None,
+            "overlap_sentences": overlap_sentences if chunking_strategy == "semantic" else None,
+        }
+
         dataset.save_metadata(metadata)
 
         print()

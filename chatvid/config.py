@@ -14,17 +14,37 @@ from typing import Optional
 class ChunkingConfig:
     """Configuration for text chunking."""
 
+    # Legacy fixed chunking parameters
     chunk_size: int = 500
     chunk_overlap: int = 50
 
+    # Phase 2: Semantic chunking parameters
+    chunking_strategy: str = "semantic"  # "fixed" or "semantic"
+    min_chunk_size: int = 300
+    max_chunk_size: int = 700
+    overlap_sentences: int = 1
+
     def __post_init__(self):
         """Validate configuration values."""
+        # Fixed chunking validation
         if self.chunk_size <= 0:
             raise ValueError(f"chunk_size must be positive, got {self.chunk_size}")
         if self.chunk_overlap < 0:
             raise ValueError(f"chunk_overlap must be non-negative, got {self.chunk_overlap}")
         if self.chunk_overlap >= self.chunk_size:
             raise ValueError(f"chunk_overlap ({self.chunk_overlap}) must be less than chunk_size ({self.chunk_size})")
+
+        # Semantic chunking validation
+        if self.chunking_strategy not in ['fixed', 'semantic']:
+            raise ValueError(f"chunking_strategy must be 'fixed' or 'semantic', got {self.chunking_strategy}")
+        if self.min_chunk_size <= 0:
+            raise ValueError(f"min_chunk_size must be positive, got {self.min_chunk_size}")
+        if self.max_chunk_size <= 0:
+            raise ValueError(f"max_chunk_size must be positive, got {self.max_chunk_size}")
+        if self.min_chunk_size > self.max_chunk_size:
+            raise ValueError(f"min_chunk_size ({self.min_chunk_size}) must be <= max_chunk_size ({self.max_chunk_size})")
+        if self.overlap_sentences < 0:
+            raise ValueError(f"overlap_sentences must be non-negative, got {self.overlap_sentences}")
 
 
 @dataclass
@@ -166,8 +186,14 @@ class Config:
 
         # Build configuration from environment
         chunking = ChunkingConfig(
+            # Legacy fixed chunking
             chunk_size=get_env_int("CHUNK_SIZE", 500),
             chunk_overlap=get_env_int("CHUNK_OVERLAP", 50),
+            # Phase 2: Semantic chunking
+            chunking_strategy=get_env_str("CHUNKING_STRATEGY", "semantic"),
+            min_chunk_size=get_env_int("MIN_CHUNK_SIZE", 300),
+            max_chunk_size=get_env_int("MAX_CHUNK_SIZE", 700),
+            overlap_sentences=get_env_int("OVERLAP_SENTENCES", 1),
         )
 
         # API key with backward compatibility

@@ -14,6 +14,7 @@ dist/
 .env.local
 .env.*
 !*.env.example
+.python-cmd
 
 # Logs
 *.log
