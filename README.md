@@ -60,7 +60,6 @@ A complete command-line tool for managing document datasets with AI-powered embe
 - **Help Command**: `./cli.sh help` for integrated documentation
 - **Zero Dependencies**: Uses native Python input(), works everywhere
 - **Fully Backward Compatible**: All existing CLI commands still function
->>>>>>> 113d03130469061e988815df487315854da925a6
 
 ### v1.1.0 - Environment Variable Configuration
 - **Added**: `.env` configuration for all settings
