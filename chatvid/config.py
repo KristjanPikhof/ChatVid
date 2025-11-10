@@ -57,6 +57,42 @@ class LLMConfig:
 
 
 @dataclass
+class RetrievalConfig:
+    """Configuration for retrieval system (Phase 1 feature)."""
+
+    # Adaptive retrieval settings
+    min_top_k: int = 5
+    max_top_k: int = 25
+    enable_adaptive_top_k: bool = True
+
+    # Phase 2+ features (placeholders)
+    enable_query_expansion: bool = False
+    expansion_method: str = "keyword"  # "keyword" or "llm"
+    max_query_variants: int = 5
+
+    # Phase 3 features (placeholders)
+    enable_two_stage_retrieval: bool = False
+    stage1_candidates: int = 50
+    enable_reranking: bool = False
+    reranking_model: str = "ms-marco-MiniLM-L-6-v2"
+
+    def __post_init__(self):
+        """Validate configuration values."""
+        if self.min_top_k <= 0:
+            raise ValueError(f"min_top_k must be positive, got {self.min_top_k}")
+        if self.max_top_k <= 0:
+            raise ValueError(f"max_top_k must be positive, got {self.max_top_k}")
+        if self.min_top_k > self.max_top_k:
+            raise ValueError(f"min_top_k ({self.min_top_k}) must be <= max_top_k ({self.max_top_k})")
+        if self.max_query_variants <= 0:
+            raise ValueError(f"max_query_variants must be positive, got {self.max_query_variants}")
+        if self.stage1_candidates < self.max_top_k:
+            raise ValueError(f"stage1_candidates ({self.stage1_candidates}) must be >= max_top_k ({self.max_top_k})")
+        if self.expansion_method not in ['keyword', 'llm']:
+            raise ValueError(f"expansion_method must be 'keyword' or 'llm', got {self.expansion_method}")
+
+
+@dataclass
 class ChatConfig:
     """Configuration for chat interface."""
 
@@ -76,6 +112,7 @@ class Config:
 
     chunking: ChunkingConfig
     llm: LLMConfig
+    retrieval: RetrievalConfig
     chat: ChatConfig
 
     @classmethod
@@ -152,6 +189,22 @@ class Config:
             top_k=get_env_int("CONTEXT_CHUNKS", 5),  # Use CONTEXT_CHUNKS for backward compat
         )
 
+        # Phase 1: Retrieval configuration
+        retrieval = RetrievalConfig(
+            min_top_k=get_env_int("MIN_TOP_K", 5),
+            max_top_k=get_env_int("MAX_TOP_K", 25),
+            enable_adaptive_top_k=get_env_str("ENABLE_ADAPTIVE_TOP_K", "true").lower() == "true",
+            # Phase 2+ placeholders
+            enable_query_expansion=get_env_str("ENABLE_QUERY_EXPANSION", "false").lower() == "true",
+            expansion_method=get_env_str("EXPANSION_METHOD", "keyword"),
+            max_query_variants=get_env_int("MAX_QUERY_VARIANTS", 5),
+            # Phase 3 placeholders
+            enable_two_stage_retrieval=get_env_str("ENABLE_TWO_STAGE_RETRIEVAL", "false").lower() == "true",
+            stage1_candidates=get_env_int("STAGE1_CANDIDATES", 50),
+            enable_reranking=get_env_str("ENABLE_RERANKING", "false").lower() == "true",
+            reranking_model=get_env_str("RERANKING_MODEL", "ms-marco-MiniLM-L-6-v2"),
+        )
+
         chat = ChatConfig(
             system_prompt=get_env_str(
                 "SYSTEM_PROMPT",
@@ -161,7 +214,7 @@ class Config:
             max_history=get_env_int("MAX_HISTORY", 10),
         )
 
-        return cls(chunking=chunking, llm=llm, chat=chat)
+        return cls(chunking=chunking, llm=llm, retrieval=retrieval, chat=chat)
 
     def validate(self) -> None:
         """Validate entire configuration.

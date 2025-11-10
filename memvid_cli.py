@@ -417,11 +417,23 @@ def read_html_file(file_path: Path) -> str:
         return ""
 
 
-def process_file(file_path: Path) -> Optional[str]:
-    """Process a file and extract text based on extension using ProcessorRegistry"""
+def process_file(file_path: Path, enable_metadata: bool = True) -> Optional[str]:
+    """Process a file and extract text based on extension using ProcessorRegistry
+
+    Args:
+        file_path: Path to the file to process
+        enable_metadata: Whether to enrich text with metadata prefix (Phase 1 feature)
+
+    Returns:
+        Extracted text, optionally with metadata prefix
+    """
     processor = ProcessorRegistry.get_processor(file_path)
     if processor:
-        return processor.extract_text(file_path)
+        # Phase 1: Use metadata enrichment if processor supports it
+        if enable_metadata and hasattr(processor, 'extract_with_metadata'):
+            return processor.extract_with_metadata(file_path, enable_enrichment=True)
+        else:
+            return processor.extract_text(file_path)
     else:
         print_warning(f"Skipping unsupported file type: {file_path.name}")
         return None
@@ -1195,16 +1207,21 @@ def cmd_build(args):
         chunk_size = get_env_int("CHUNK_SIZE", 300, 100, 1000)
         chunk_overlap = get_env_int("CHUNK_OVERLAP", 50, 20, 200)
 
+    # Phase 1: Metadata enrichment configuration
+    enable_metadata = os.getenv("ENABLE_METADATA_ENRICHMENT", "true").lower() == "true"
+
     print_info(f"Processing {len(docs)} documents...")
     print_info(f"Chunk settings: size={chunk_size}, overlap={chunk_overlap}")
+    if enable_metadata:
+        print_info(f"Metadata enrichment: enabled")
     print()
 
     files_processed = {}
     for i, doc_path in enumerate(docs, 1):
         print(f"[{i}/{len(docs)}] Processing: {doc_path.name}")
 
-        # Extract text
-        text = process_file(doc_path)
+        # Extract text (with metadata enrichment if enabled)
+        text = process_file(doc_path, enable_metadata=enable_metadata)
         if not text or len(text.strip()) < 10:
             print_warning(f"  Skipped (no text extracted)")
             continue
@@ -1364,6 +1381,11 @@ def cmd_chat(args):
         llm_max_tokens = config.llm.max_tokens
         context_chunks = config.llm.top_k
         max_history = config.chat.max_history
+
+        # Phase 1: Adaptive retrieval configuration
+        min_top_k = config.retrieval.min_top_k
+        max_top_k = config.retrieval.max_top_k
+        enable_adaptive = config.retrieval.enable_adaptive_top_k
     except Exception as e:
         print_warning(f"Config error: {e}, using fallback")
         api_key = os.getenv("OPENAI_API_KEY")
@@ -1373,6 +1395,11 @@ def cmd_chat(args):
         llm_max_tokens = get_env_int("LLM_MAX_TOKENS", 1000, 100, 4000)
         context_chunks = get_env_int("CONTEXT_CHUNKS", 10, 1, 20)
         max_history = get_env_int("MAX_HISTORY", 10, 1, 50)
+
+        # Phase 1: Adaptive retrieval fallback
+        min_top_k = get_env_int("MIN_TOP_K", 5, 1, 50)
+        max_top_k = get_env_int("MAX_TOP_K", 25, 5, 50)
+        enable_adaptive = os.getenv("ENABLE_ADAPTIVE_TOP_K", "true").lower() == "true"
 
     # Check for API key
     if not api_key:
@@ -1433,12 +1460,74 @@ def cmd_chat(args):
 
         print_success("Chat initialized successfully!")
         print()
+
+        # Phase 1: Initialize query complexity analyzer if adaptive retrieval is enabled
+        if enable_adaptive:
+            from chatvid.retrieval import QueryComplexityAnalyzer
+            query_analyzer = QueryComplexityAnalyzer(min_top_k=min_top_k, max_top_k=max_top_k)
+            print_info(f"Adaptive retrieval enabled (range: {min_top_k}-{max_top_k} chunks)")
+        else:
+            query_analyzer = None
+            print_info(f"Using fixed retrieval: {context_chunks} chunks")
+
+        print()
         print_info("Type your questions and press Enter.")
         print_info("Type 'quit' or 'exit' to end the session.")
         print(f"{Colors.CYAN}{'=' * 70}{Colors.NC}\n")
 
-        # Start interactive chat
-        chat.interactive_chat()
+        # Start interactive chat with adaptive retrieval
+        if enable_adaptive and query_analyzer:
+            # Custom chat loop with per-query adaptive retrieval
+            conversation_history = []
+
+            while True:
+                try:
+                    # Get user input
+                    user_input = input(f"{Colors.CYAN}You: {Colors.NC}").strip()
+
+                    if not user_input:
+                        continue
+
+                    if user_input.lower() in ['quit', 'exit', 'q']:
+                        break
+
+                    # Analyze query complexity and adjust retrieval
+                    analysis = query_analyzer.analyze(user_input)
+                    adaptive_top_k = analysis['top_k']
+
+                    # Update chat config for this query
+                    chat_config["chat"]["context_chunks"] = adaptive_top_k
+
+                    # Show analysis in debug mode
+                    if os.getenv("DEBUG_ADAPTIVE", "false").lower() == "true":
+                        print(f"  [Analysis: {analysis['reasoning']}, retrieving {adaptive_top_k} chunks]")
+
+                    # Get response from chat
+                    response = chat.chat(user_input)
+
+                    # Display response
+                    print(f"\n{Colors.GREEN}Assistant:{Colors.NC} {response}\n")
+
+                    # Manage conversation history
+                    conversation_history.append({"role": "user", "content": user_input})
+                    conversation_history.append({"role": "assistant", "content": response})
+
+                    # Trim history to max_history turns
+                    if len(conversation_history) > max_history * 2:
+                        conversation_history = conversation_history[-(max_history * 2):]
+
+                except KeyboardInterrupt:
+                    print("\n")
+                    break
+                except EOFError:
+                    print("\n")
+                    break
+                except Exception as e:
+                    print_error(f"Error processing query: {e}")
+                    continue
+        else:
+            # Use original interactive chat
+            chat.interactive_chat()
 
     except Exception as e:
         print_error(f"Failed to initialize chat: {e}")
