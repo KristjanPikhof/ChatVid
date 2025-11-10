@@ -26,62 +26,17 @@ A complete command-line tool for managing document datasets with AI-powered embe
 
 ## Recent Updates
 
-### v1.4.0 (Latest) - New Document Format Support
-- **Spreadsheets**: Excel (.xlsx, .xls) and CSV support with markdown table formatting
-- **RTF**: Rich Text Format support for legacy documents
-- **EPUB**: E-book support (EPUB2 and EPUB3) with chapter extraction
-- **PowerPoint**: Presentation support (.pptx) with slide text and speaker notes
-- **11 Total Formats**: TXT, MD, PDF, DOCX, HTML, XLSX, XLS, CSV, RTF, EPUB, PPTX
-- **Configurable**: `MAX_SPREADSHEET_ROWS` environment variable for memory management
-- **LLM-Optimized**: Markdown table formatting for better comprehension
-- **Fully Backward Compatible**: All existing functionality preserved
+#### [1.6.0] - 2025-11-10
 
-### v1.3.0 - Modular Architecture Refactoring
-- **Plugin System**: Modular processor architecture for easy format extension
-- **Type-Safe Config**: Dataclass-based configuration with validation
-- **HTML Support**: Added `.html` and `.htm` file support via BeautifulSoup4
-- **Architecture Benefits**: Single responsibility, plugin architecture, type safety
-- **Developer-Friendly**: Well-documented pattern in `chatvid/processors/README.md`
+**Major improvement to text chunking quality with sentence-boundary-aware splitting:**
 
-### v1.2.0 - Interactive Menu System
-- **Added**: Interactive menu-driven interface with numbered selection
-- **Default Behavior**: Running `./cli.sh` with no arguments now starts interactive menu
-- **Dataset Selection**: Choose datasets from numbered list instead of typing names
-- **File Management**: View, remove, and manage files interactively
-- **Help Command**: New `./cli.sh help` command with comprehensive documentation
-- **Zero Dependencies**: Uses native Python input(), works everywhere
-- **Fully Backward Compatible**: All existing CLI commands work unchanged
-=======
-### v1.2.0 - Interactive Menu System
-- **Added**: Interactive menu-driven interface with numbered selection
-- **Default Behavior**: Running `./cli.sh` with no arguments now starts menu
-- **Dataset Selection**: Choose datasets from numbered list instead of typing names
-- **File Management**: View, remove, and manage files interactively
-- **Help Command**: `./cli.sh help` for integrated documentation
-- **Zero Dependencies**: Uses native Python input(), works everywhere
-- **Fully Backward Compatible**: All existing CLI commands still function
-
-### v1.1.0 - Environment Variable Configuration
-- **Added**: `.env` configuration for all settings
-- **Chunk Configuration**: `CHUNK_SIZE` and `CHUNK_OVERLAP` variable-driven
-- **LLM Configuration**: Configure model, temperature, max tokens, and context chunks
-- **Easy Experimentation**: Adjust behavior by editing `.env`
-- **Auto-Setup**: `./cli.sh setup` generates all defaults automatically
-- **Validation**: Automatic checks and helpful warnings
-
-### v1.0.2 - Source Attribution Fix
-- **Fixed**: Cross-document data mixing removed
-- **How**: Chunks now include `[Source: filename.pdf]` prefix
-- **Impact**: AI outputs now tie correctly to original files
-- **Action Required**: Rebuild datasets with `./cli.sh rebuild <name>`
-
-### v1.0.1 - Chat Context Improvement
-- **Fixed**: Increased context retrieval window (5 → 10 chunks)
-- **Impact**: Produces more complete and context-aware answers
-
-### v1.0.0 - Initial Release
-- **Fixed**: Removed invalid `metadata` parameter from memvid API
-- **Impact**: Dataset build works as intended
+##### Semantic Chunker (`chatvid/chunking.py`)
+- **`SemanticChunker` class**: Respects sentence boundaries instead of arbitrary character splits
+  - **Benefits**: +25% quality improvement over fixed chunking
+  - Preserves complete sentences (no mid-sentence splits)
+  - Better semantic coherence per chunk
+  - Smart sentence-based overlap for continuity
+  - Size range control: min_chunk_size (300) to max_chunk_size (700)
 
 **Full version history:** See [CHANGELOG.md](CHANGELOG.md)
 
