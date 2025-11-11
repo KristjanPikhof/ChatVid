@@ -635,3 +635,147 @@ class ChunkingStrategy:
 
         else:
             raise ValueError(f"Unknown chunking strategy: {strategy}")
+
+
+# ============================================================================
+# Page-Aware Chunking for PDF Citation Tracking (v1.7.0)
+# ============================================================================
+
+@dataclass
+class PageAwareChunk:
+    """
+    Chunk with page tracking for PDFs and slide-aware formats.
+
+    Extends basic Chunk with page/slide boundary information to enable
+    precise citations with page numbers in chat responses.
+    """
+    text: str
+    start_char: int
+    end_char: int
+    sentence_count: int
+    page_start: int  # First page/slide this chunk appears on
+    page_end: int    # Last page/slide (if chunk spans multiple pages)
+
+    def __len__(self):
+        return len(self.text)
+
+
+class PageAwareSemanticChunker(SemanticChunker):
+    """
+    Semantic chunker that preserves page boundary information.
+
+    For PDFs and other page-based formats, tracks which page(s) each chunk
+    originated from to enable citation display with page numbers.
+
+    Example:
+        >>> pages = [(1, "Page 1 text"), (2, "Page 2 text")]
+        >>> chunker = PageAwareSemanticChunker()
+        >>> chunks = chunker.chunk_text_with_pages(pages)
+        >>> print(chunks[0].page_start, chunks[0].page_end)
+        1 1
+    """
+
+    def chunk_text_with_pages(
+        self,
+        pages: List[Tuple[int, str]]
+    ) -> List[PageAwareChunk]:
+        """
+        Chunk text while preserving page information.
+
+        Algorithm:
+        1. Build full text with page position markers
+        2. Use parent SemanticChunker logic for optimal chunking
+        3. Map each chunk back to its source page(s)
+
+        Args:
+            pages: List of (page_number, page_text) tuples
+
+        Returns:
+            List of PageAwareChunk objects with page tracking
+        """
+        if not pages:
+            return []
+
+        # Build text with page markers and track positions
+        text_segments = []
+        page_positions = []  # List of (char_offset, page_num)
+        current_offset = 0
+
+        for page_num, page_text in pages:
+            page_positions.append((current_offset, page_num))
+            text_segments.append(page_text)
+            current_offset += len(page_text) + 2  # +2 for \n\n separator
+
+        # Join all pages with double newlines
+        full_text = "\n\n".join(text_segments)
+
+        # Use parent class chunking logic to respect sentence boundaries
+        chunk_texts = self.chunk_text(full_text)
+
+        # Map chunks to pages
+        page_aware_chunks = []
+        search_start = 0  # Track position in full_text for faster searching
+
+        for chunk_text in chunk_texts:
+            # Find chunk position in full text (start searching from last position)
+            start_pos = full_text.find(chunk_text, search_start)
+
+            if start_pos == -1:
+                # Fallback: search from beginning (shouldn't happen but be safe)
+                start_pos = full_text.find(chunk_text)
+
+            if start_pos == -1:
+                # Skip this chunk if we can't find it (shouldn't happen)
+                continue
+
+            end_pos = start_pos + len(chunk_text)
+            search_start = start_pos + 1  # Update for next iteration
+
+            # Determine which pages this chunk spans
+            page_start = self._find_page_at_position(start_pos, page_positions)
+            page_end = self._find_page_at_position(end_pos - 1, page_positions)
+
+            # Count sentences (approximate)
+            sentence_count = (
+                chunk_text.count('.') +
+                chunk_text.count('!') +
+                chunk_text.count('?')
+            )
+
+            page_aware_chunks.append(PageAwareChunk(
+                text=chunk_text,
+                start_char=start_pos,
+                end_char=end_pos,
+                sentence_count=max(1, sentence_count),
+                page_start=page_start,
+                page_end=page_end
+            ))
+
+        return page_aware_chunks
+
+    def _find_page_at_position(
+        self,
+        char_pos: int,
+        page_positions: List[Tuple[int, int]]
+    ) -> int:
+        """
+        Find which page a character position belongs to.
+
+        Args:
+            char_pos: Character offset in full text
+            page_positions: List of (char_offset, page_num) tuples
+
+        Returns:
+            Page number (1-indexed)
+        """
+        if not page_positions:
+            return 1
+
+        # Find the last page boundary before this position
+        for i in range(len(page_positions) - 1, -1, -1):
+            offset, page_num = page_positions[i]
+            if offset <= char_pos:
+                return page_num
+
+        # If position is before all pages, return first page
+        return page_positions[0][1]

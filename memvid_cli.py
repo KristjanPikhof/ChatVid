@@ -1209,6 +1209,11 @@ def cmd_build(args):
     # Initialize encoder
     encoder = MemvidEncoder()
 
+    # Phase 2: Initialize citation store for page number tracking (v1.7.0)
+    from chatvid.citation_store import CitationStore
+    citation_store = CitationStore(dataset.path)
+    citation_store.clear()  # Start fresh for each build
+
     # Get chunking configuration
     try:
         config = Config.from_env()
@@ -1268,53 +1273,162 @@ def cmd_build(args):
     print()
 
     files_processed = {}
-    all_chunks = []  # Collect chunks manually for semantic chunking
+    all_chunks = []  # Collect chunk text for encoder
+    all_chunk_metadata = []  # Collect citation metadata parallel to chunks
+
+    # Import processors for page-aware processing
+    from chatvid.processors import ProcessorRegistry
 
     for i, doc_path in enumerate(docs, 1):
         print(f"[{i}/{len(docs)}] Processing: {doc_path.name}")
 
-        # Extract text (with metadata enrichment if enabled)
-        import sys
-        print(f"  Extracting text...", file=sys.stderr, flush=True)
-        text = process_file(doc_path, enable_metadata=enable_metadata)
+        # Get processor to check if page-aware processing is available
+        processor = ProcessorRegistry.get_processor(doc_path)
 
-        if not text or len(text.strip()) < 10:
-            print_warning(f"  Skipped (no text extracted)")
-            continue
+        # Phase 2: PDF page-aware processing
+        if processor and hasattr(processor, 'extract_text_with_pages') and chunking_strategy == "semantic" and chunker:
+            # PDF with page tracking
+            import sys
+            print(f"  Extracting text with page tracking...", file=sys.stderr, flush=True)
 
-        print(f"  Extracted {len(text)} characters", file=sys.stderr, flush=True)
+            pages = processor.extract_text_with_pages(doc_path)
 
-        # Add source attribution
-        # Prepend source filename to help LLM distinguish between documents
-        file_hash = get_file_hash(doc_path)
-        prefixed_text = f"[Source: {doc_path.name}]\n\n{text}"
+            if not pages:
+                print_warning(f"  Skipped (no text extracted)")
+                continue
 
-        # Chunk text based on strategy
-        if chunking_strategy == "semantic" and chunker:
-            # Use semantic chunker
+            total_chars = sum(len(text) for _, text in pages)
+            print(f"  Extracted {total_chars} characters from {len(pages)} pages", file=sys.stderr, flush=True)
+
+            # Get document metadata
+            doc_metadata = processor.get_metadata(doc_path)
+
+            # Build metadata prefix (if enabled)
+            if enable_metadata:
+                prefix_parts = [f"[Document: {doc_path.name}"]
+                if 'pages' in doc_metadata:
+                    prefix_parts.append(f"Pages: {doc_metadata['pages']}")
+                if 'author' in doc_metadata:
+                    prefix_parts.append(f"Author: {doc_metadata['author']}")
+                metadata_prefix = " | ".join(prefix_parts) + "]\n\n"
+            else:
+                metadata_prefix = ""
+
+            # Use PageAwareSemanticChunker
+            from chatvid.chunking import PageAwareSemanticChunker
+            page_chunker = PageAwareSemanticChunker(
+                min_chunk_size=min_chunk_size,
+                max_chunk_size=max_chunk_size,
+                target_chunk_size=chunk_size,
+                overlap_sentences=overlap_sentences,
+                backend=sentence_backend if 'sentence_backend' in locals() else "regex"
+            )
+
+            print(f"  Semantic chunking with page tracking...", file=sys.stderr, flush=True)
             try:
-                print(f"  Semantic chunking...", file=sys.stderr, flush=True)
+                page_aware_chunks = page_chunker.chunk_text_with_pages(pages)
+
+                # Add source attribution and metadata to each chunk
+                for chunk in page_aware_chunks:
+                    chunk_text = f"[Source: {doc_path.name}]\n{metadata_prefix}{chunk.text}"
+                    all_chunks.append(chunk_text)
+
+                    # Store citation metadata
+                    all_chunk_metadata.append({
+                        'document': doc_path.name,
+                        'page_start': chunk.page_start,
+                        'page_end': chunk.page_end,
+                        'doc_metadata': doc_metadata
+                    })
+
+                print_success(f"  Added ({total_chars} characters, {len(page_aware_chunks)} chunks with page numbers)")
+            except Exception as e:
+                print_warning(f"  Page-aware chunking failed: {e}, using standard approach")
+                # Fallback to standard processing
+                text = process_file(doc_path, enable_metadata=enable_metadata)
+                file_hash = get_file_hash(doc_path)
+                prefixed_text = f"[Source: {doc_path.name}]\n\n{text}"
                 chunks = chunker.chunk_text(prefixed_text)
                 all_chunks.extend(chunks)
+                # Add metadata without page numbers
+                for _ in chunks:
+                    all_chunk_metadata.append({
+                        'document': doc_path.name,
+                        'page_start': None,
+                        'page_end': None,
+                        'doc_metadata': doc_metadata
+                    })
                 print_success(f"  Added ({len(text)} characters, {len(chunks)} chunks)")
-            except Exception as e:
-                print_warning(f"  Semantic chunking failed: {e}, using fixed")
-                encoder.add_text(prefixed_text, chunk_size=chunk_size, overlap=chunk_overlap)
-                print_success(f"  Added ({len(text)} characters)")
-        else:
-            # Use fixed chunking (via MemvidEncoder)
-            encoder.add_text(prefixed_text, chunk_size=chunk_size, overlap=chunk_overlap)
-            print_success(f"  Added ({len(text)} characters)")
 
-        files_processed[doc_path.name] = file_hash
+            file_hash = get_file_hash(doc_path)
+            files_processed[doc_path.name] = file_hash
+
+        else:
+            # Standard processing for non-PDF files or non-semantic chunking
+            import sys
+            print(f"  Extracting text...", file=sys.stderr, flush=True)
+            text = process_file(doc_path, enable_metadata=enable_metadata)
+
+            if not text or len(text.strip()) < 10:
+                print_warning(f"  Skipped (no text extracted)")
+                continue
+
+            print(f"  Extracted {len(text)} characters", file=sys.stderr, flush=True)
+
+            # Add source attribution
+            file_hash = get_file_hash(doc_path)
+            prefixed_text = f"[Source: {doc_path.name}]\n\n{text}"
+
+            # Get metadata for citation store (no page numbers)
+            doc_metadata = processor.get_metadata(doc_path) if processor else {}
+
+            # Chunk text based on strategy
+            if chunking_strategy == "semantic" and chunker:
+                # Use semantic chunker
+                try:
+                    print(f"  Semantic chunking...", file=sys.stderr, flush=True)
+                    chunks = chunker.chunk_text(prefixed_text)
+                    all_chunks.extend(chunks)
+                    # Add metadata without page numbers
+                    for _ in chunks:
+                        all_chunk_metadata.append({
+                            'document': doc_path.name,
+                            'page_start': None,
+                            'page_end': None,
+                            'doc_metadata': doc_metadata
+                        })
+                    print_success(f"  Added ({len(text)} characters, {len(chunks)} chunks)")
+                except Exception as e:
+                    print_warning(f"  Semantic chunking failed: {e}, using fixed")
+                    encoder.add_text(prefixed_text, chunk_size=chunk_size, overlap=chunk_overlap)
+                    # Note: For fixed chunking added directly, we can't track individual chunks easily
+                    print_success(f"  Added ({len(text)} characters)")
+            else:
+                # Use fixed chunking (via MemvidEncoder)
+                encoder.add_text(prefixed_text, chunk_size=chunk_size, overlap=chunk_overlap)
+                # Note: For fixed chunking added directly, we can't track individual chunks easily
+                print_success(f"  Added ({len(text)} characters)")
+
+            files_processed[doc_path.name] = file_hash
 
     # If we used semantic chunking, add all chunks to encoder at once
     if chunking_strategy == "semantic" and all_chunks:
         print()
         print_info(f"Adding {len(all_chunks)} semantic chunks to encoder...")
-        for chunk in all_chunks:
+        for idx, chunk in enumerate(all_chunks):
             # Add each chunk as a separate text with size=len(chunk) to prevent re-chunking
             encoder.add_text(chunk, chunk_size=len(chunk) + 1, overlap=0)
+
+            # Save citation metadata if available
+            if idx < len(all_chunk_metadata):
+                metadata = all_chunk_metadata[idx]
+                citation_store.add_citation(
+                    chunk_id=idx,
+                    document=metadata['document'],
+                    page_start=metadata.get('page_start'),
+                    page_end=metadata.get('page_end'),
+                    doc_metadata=metadata.get('doc_metadata', {})
+                )
 
     print()
 
@@ -1372,11 +1486,25 @@ def cmd_build(args):
 
         dataset.save_metadata(metadata)
 
+        # Phase 2: Save citation store with page tracking (v1.7.0)
+        citation_store.set_chunking_config(metadata["chunking_config"])
+        citation_store.save()
+
+        # Get citation statistics
+        citation_stats = citation_store.get_stats()
+
         print()
         print_success("Build complete!")
         print()
         print_info(f"Total chunks: {stats['total_chunks']}")
         print_info(f"Files processed: {len(files_processed)}")
+
+        # Show citation tracking info
+        if citation_stats['has_page_tracking']:
+            print_info(f"Page tracking: {citation_stats['chunks_with_pages']}/{citation_stats['total_chunks']} chunks with page numbers")
+        else:
+            print_info(f"Page tracking: disabled (use semantic chunking + PDF files)")
+
         print()
         print_info(f"Ready to chat! Run: ./cli.sh chat {dataset.name}")
     else:
@@ -1449,6 +1577,136 @@ def cmd_rebuild(args):
 
     args.rebuild = True
     cmd_build(args)
+
+
+# ============================================================================
+# Citation & Source Tracking System
+# ============================================================================
+
+def extract_citations_from_chunks(chunks_data: List[Dict], citation_store=None) -> List[Dict]:
+    """
+    Extract citation information from retrieved chunks.
+
+    Phase 2 (v1.7.0): Enhanced with page number support from citation store.
+
+    Args:
+        chunks_data: List of chunk dicts from search_with_metadata()
+        citation_store: Optional CitationStore for page number lookup
+
+    Returns:
+        List of citation dicts with document info, scores, and page numbers
+    """
+    import re
+
+    citations = []
+    seen_docs = {}  # Track unique documents: doc_name -> first appearance index
+
+    for chunk in chunks_data:
+        text = chunk.get('text', '')
+        score = chunk.get('score', 0.0)
+        chunk_id = chunk.get('chunk_id', chunk.get('id', None))
+
+        # Extract [Source: filename.pdf] from chunk text
+        match = re.search(r'\[Source:\s*([^\]]+)\]', text)
+        if match:
+            doc_name = match.group(1).strip()
+
+            # Only add first occurrence of each document
+            if doc_name not in seen_docs:
+                citation_num = len(citations) + 1
+                seen_docs[doc_name] = citation_num
+
+                # Extract a relevant excerpt (first ~150 chars after source tag)
+                excerpt_start = match.end()
+                excerpt_text = text[excerpt_start:excerpt_start + 150].strip()
+                if len(text[excerpt_start:]) > 150:
+                    excerpt_text += "..."
+
+                # Get page numbers from citation store if available
+                page_start = None
+                page_end = None
+                if citation_store and chunk_id is not None:
+                    citation_meta = citation_store.get_citation(chunk_id)
+                    if citation_meta:
+                        page_start = citation_meta.get('page_start')
+                        page_end = citation_meta.get('page_end')
+
+                citations.append({
+                    'number': citation_num,
+                    'document': doc_name,
+                    'chunk_id': chunk_id,
+                    'score': score,
+                    'excerpt': excerpt_text,
+                    'page_start': page_start,
+                    'page_end': page_end
+                })
+
+    return citations
+
+
+def format_inline_citations(citations: List[Dict]) -> str:
+    """
+    Format citations as inline numbered references with full source list.
+
+    Phase 2 (v1.7.0): Includes page numbers when available.
+
+    Args:
+        citations: List of citation dicts
+
+    Returns:
+        Formatted string with numbered sources and page numbers
+    """
+    if not citations:
+        return ""
+
+    # Build the sources section
+    sources_lines = ["\n\n📚 Sources:"]
+    show_scores = os.getenv("SHOW_RELEVANCE_SCORES", "false").lower() == "true"
+
+    for cite in citations:
+        # Format: [1] document.pdf (pp. 12-13) [score: 0.89]
+        source_text = f"[{cite['number']}] {cite['document']}"
+
+        # Add page numbers if available
+        page_start = cite.get('page_start')
+        page_end = cite.get('page_end')
+
+        if page_start is not None:
+            if page_end is not None and page_end != page_start:
+                # Multiple pages
+                source_text += f" (pp. {page_start}-{page_end})"
+            else:
+                # Single page
+                source_text += f" (p. {page_start})"
+
+        # Add relevance score if enabled
+        if show_scores and 'score' in cite:
+            source_text += f" [score: {cite['score']:.2f}]"
+
+        sources_lines.append(source_text)
+
+    # Add hint about /source command if enabled
+    if os.getenv("SHOW_SOURCE_HINTS", "true").lower() == "true":
+        sources_lines.append(f"\n💡 Use '/source N' to see full context for source [N]")
+
+    return "\n".join(sources_lines)
+
+
+def format_inline_citation_markers(citations: List[Dict]) -> str:
+    """
+    Generate inline citation markers like [1][2][3] for appending to response.
+
+    Args:
+        citations: List of citation dicts
+
+    Returns:
+        String like " [1][2]" or empty string
+    """
+    if not citations:
+        return ""
+
+    markers = "".join([f"[{cite['number']}]" for cite in citations])
+    return f" {markers}"
 
 
 def cmd_chat(args):
@@ -1566,11 +1824,41 @@ def cmd_chat(args):
         print()
         print_info("Type your questions and press Enter.")
         print_info("Type 'quit' or 'exit' to end the session.")
+        print_info("Commands: /source N (view full context), /sources (list all sources)")
+
+        # Check if citations are enabled
+        show_citations = os.getenv("SHOW_CITATIONS", "true").lower() == "true"
+
+        if show_citations:
+            print_info("Citations enabled - sources will be shown with responses.")
+
         print(f"{Colors.CYAN}{'=' * 70}{Colors.NC}\n")
+
+        # Initialize retriever for citation extraction
+        from memvid import MemvidRetriever
+        retriever = MemvidRetriever(
+            video_file=str(dataset.video_file),
+            index_file=str(dataset.index_file)
+        )
+
+        # Phase 2: Load citation store for page number tracking (v1.7.0)
+        from chatvid.citation_store import CitationStore
+        citation_store = CitationStore(dataset.path)
+
+        if citation_store.exists() and citation_store.has_page_numbers():
+            print_info("Page number tracking enabled for citations.")
+        elif citation_store.exists():
+            print_info("Citation tracking enabled (no page numbers).")
+        else:
+            citation_store = None  # No citation store available
+
+        # Track last query's citations for /source command
+        last_citations = []
+        last_chunks_data = []
 
         # Start interactive chat with adaptive retrieval
         if enable_adaptive and query_analyzer:
-            # Custom chat loop with per-query adaptive retrieval
+            # Custom chat loop with per-query adaptive retrieval and citation tracking
             conversation_history = []
 
             while True:
@@ -1584,6 +1872,59 @@ def cmd_chat(args):
                     if user_input.lower() in ['quit', 'exit', 'q']:
                         break
 
+                    # Handle /source N command
+                    if user_input.startswith('/source'):
+                        parts = user_input.split()
+                        if len(parts) == 2 and parts[1].isdigit():
+                            source_num = int(parts[1])
+                            if 1 <= source_num <= len(last_citations):
+                                citation = last_citations[source_num - 1]
+                                # Find the corresponding chunk
+                                chunk_found = False
+                                for chunk_data in last_chunks_data:
+                                    chunk_text = chunk_data.get('text', '')
+                                    if f"[Source: {citation['document']}]" in chunk_text:
+                                        # Display full chunk context
+                                        print(f"\n{Colors.YELLOW}Source [{source_num}]: {citation['document']}", end="")
+                                        if citation.get('page_start'):
+                                            if citation.get('page_end') and citation['page_end'] != citation['page_start']:
+                                                print(f" (pp. {citation['page_start']}-{citation['page_end']})")
+                                            else:
+                                                print(f" (p. {citation['page_start']})")
+                                        else:
+                                            print()
+                                        print(f"{Colors.CYAN}{'-' * 70}{Colors.NC}")
+                                        # Remove source prefix for cleaner display
+                                        clean_text = chunk_text.replace(f"[Source: {citation['document']}]\n", "")
+                                        print(f"{clean_text}")
+                                        print(f"{Colors.CYAN}{'-' * 70}{Colors.NC}\n")
+                                        chunk_found = True
+                                        break
+                                if not chunk_found:
+                                    print_warning(f"Could not find chunk for source [{source_num}]")
+                            else:
+                                print_warning(f"Invalid source number. Valid range: 1-{len(last_citations)}")
+                        else:
+                            print_warning("Usage: /source N (where N is the source number)")
+                        continue
+
+                    # Handle /sources command
+                    if user_input.startswith('/sources'):
+                        if last_citations:
+                            print(f"\n{Colors.YELLOW}All sources from last query:{Colors.NC}")
+                            for cite in last_citations:
+                                source_text = f"[{cite['number']}] {cite['document']}"
+                                if cite.get('page_start'):
+                                    if cite.get('page_end') and cite['page_end'] != cite['page_start']:
+                                        source_text += f" (pp. {cite['page_start']}-{cite['page_end']})"
+                                    else:
+                                        source_text += f" (p. {cite['page_start']})"
+                                print(f"  {source_text}")
+                            print()
+                        else:
+                            print_warning("No citations available. Ask a question first.")
+                        continue
+
                     # Analyze query complexity and adjust retrieval
                     analysis = query_analyzer.analyze(user_input)
                     adaptive_top_k = analysis['top_k']
@@ -1595,11 +1936,26 @@ def cmd_chat(args):
                     if os.getenv("DEBUG_ADAPTIVE", "false").lower() == "true":
                         print(f"  [Analysis: {analysis['reasoning']}, retrieving {adaptive_top_k} chunks]")
 
+                    # Retrieve chunks with metadata for citation extraction
+                    if show_citations:
+                        chunks_data = retriever.search_with_metadata(user_input, top_k=adaptive_top_k)
+                        citations = extract_citations_from_chunks(chunks_data, citation_store)
+                        # Store for /source command
+                        last_citations = citations
+                        last_chunks_data = chunks_data
+                    else:
+                        citations = []
+                        last_citations = []
+                        last_chunks_data = []
+
                     # Get response from chat
                     response = chat.chat(user_input)
 
-                    # Display response
-                    print(f"\n{Colors.GREEN}Assistant:{Colors.NC} {response}\n")
+                    # Format citations
+                    citation_text = format_inline_citations(citations) if show_citations else ""
+
+                    # Display response with citations
+                    print(f"\n{Colors.GREEN}Assistant:{Colors.NC} {response}{citation_text}\n")
 
                     # Manage conversation history
                     conversation_history.append({"role": "user", "content": user_input})
@@ -1619,8 +1975,111 @@ def cmd_chat(args):
                     print_error(f"Error processing query: {e}")
                     continue
         else:
-            # Use original interactive chat
-            chat.interactive_chat()
+            # Non-adaptive chat loop with citation support
+            conversation_history = []
+
+            while True:
+                try:
+                    # Get user input
+                    user_input = input(f"{Colors.CYAN}You: {Colors.NC}").strip()
+
+                    if not user_input:
+                        continue
+
+                    if user_input.lower() in ['quit', 'exit', 'q']:
+                        break
+
+                    # Handle /source N command
+                    if user_input.startswith('/source'):
+                        parts = user_input.split()
+                        if len(parts) == 2 and parts[1].isdigit():
+                            source_num = int(parts[1])
+                            if 1 <= source_num <= len(last_citations):
+                                citation = last_citations[source_num - 1]
+                                # Find the corresponding chunk
+                                chunk_found = False
+                                for chunk_data in last_chunks_data:
+                                    chunk_text = chunk_data.get('text', '')
+                                    if f"[Source: {citation['document']}]" in chunk_text:
+                                        # Display full chunk context
+                                        print(f"\n{Colors.YELLOW}Source [{source_num}]: {citation['document']}", end="")
+                                        if citation.get('page_start'):
+                                            if citation.get('page_end') and citation['page_end'] != citation['page_start']:
+                                                print(f" (pp. {citation['page_start']}-{citation['page_end']})")
+                                            else:
+                                                print(f" (p. {citation['page_start']})")
+                                        else:
+                                            print()
+                                        print(f"{Colors.CYAN}{'-' * 70}{Colors.NC}")
+                                        # Remove source prefix for cleaner display
+                                        clean_text = chunk_text.replace(f"[Source: {citation['document']}]\n", "")
+                                        print(f"{clean_text}")
+                                        print(f"{Colors.CYAN}{'-' * 70}{Colors.NC}\n")
+                                        chunk_found = True
+                                        break
+                                if not chunk_found:
+                                    print_warning(f"Could not find chunk for source [{source_num}]")
+                            else:
+                                print_warning(f"Invalid source number. Valid range: 1-{len(last_citations)}")
+                        else:
+                            print_warning("Usage: /source N (where N is the source number)")
+                        continue
+
+                    # Handle /sources command
+                    if user_input.startswith('/sources'):
+                        if last_citations:
+                            print(f"\n{Colors.YELLOW}All sources from last query:{Colors.NC}")
+                            for cite in last_citations:
+                                source_text = f"[{cite['number']}] {cite['document']}"
+                                if cite.get('page_start'):
+                                    if cite.get('page_end') and cite['page_end'] != cite['page_start']:
+                                        source_text += f" (pp. {cite['page_start']}-{cite['page_end']})"
+                                    else:
+                                        source_text += f" (p. {cite['page_start']})"
+                                print(f"  {source_text}")
+                            print()
+                        else:
+                            print_warning("No citations available. Ask a question first.")
+                        continue
+
+                    # Retrieve chunks with metadata for citation extraction
+                    if show_citations:
+                        chunks_data = retriever.search_with_metadata(user_input, top_k=context_chunks)
+                        citations = extract_citations_from_chunks(chunks_data, citation_store)
+                        # Store for /source command
+                        last_citations = citations
+                        last_chunks_data = chunks_data
+                    else:
+                        citations = []
+                        last_citations = []
+                        last_chunks_data = []
+
+                    # Get response from chat
+                    response = chat.chat(user_input)
+
+                    # Format citations
+                    citation_text = format_inline_citations(citations) if show_citations else ""
+
+                    # Display response with citations
+                    print(f"\n{Colors.GREEN}Assistant:{Colors.NC} {response}{citation_text}\n")
+
+                    # Manage conversation history
+                    conversation_history.append({"role": "user", "content": user_input})
+                    conversation_history.append({"role": "assistant", "content": response})
+
+                    # Trim history to max_history turns
+                    if len(conversation_history) > max_history * 2:
+                        conversation_history = conversation_history[-(max_history * 2):]
+
+                except KeyboardInterrupt:
+                    print("\n")
+                    break
+                except EOFError:
+                    print("\n")
+                    break
+                except Exception as e:
+                    print_error(f"Error processing query: {e}")
+                    continue
 
     except Exception as e:
         print_error(f"Failed to initialize chat: {e}")

@@ -36,6 +36,7 @@ datasets/*/knowledge.mp4
 datasets/*/knowledge_index.json
 datasets/*/knowledge_index.faiss
 datasets/*/metadata.json
+datasets/*/citation_index.json
 
 # Keep documents folder structure but ignore files inside
 datasets/*/documents/*
